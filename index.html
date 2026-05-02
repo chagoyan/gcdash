@@ -8,6 +8,9 @@
   <!-- Google Identity Services — required for OAuth -->
   <script src="https://accounts.google.com/gsi/client"></script>
 
+  <!-- Config — not committed to git, auto-fills Client ID -->
+  <script src="config.js"></script>
+
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -61,12 +64,14 @@
        Detail Section
        Shown after fetching a course. Displays topics,
        assignments, materials, and attachments.
+       The detail-actions div is hidden when showing
+       the student progress monitor.
   --------------------------------------------------------- -->
   <div class="detail-section" id="detail-section">
     <span class="detail-back" onclick="closeDetail()">← Back to courses</span>
     <h2 id="detail-title"></h2>
     <div id="detail-body"></div>
-    <div class="actions">
+    <div class="actions" id="detail-actions">
       <button class="btn btn-primary" onclick="openPrintView()">Print course outline</button>
       <button class="btn" onclick="downloadSelectedMd()">Download .md</button>
     </div>

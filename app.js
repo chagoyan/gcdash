@@ -6,14 +6,12 @@
 /* ------------------------------------------------------------
    State
    ------------------------------------------------------------ */
-let tokenClient;       // Google OAuth token client
-let accessToken;       // Short-lived access token (expires ~1hr)
-let courses    = [];   // All courses fetched from Classroom API
-let selectedId = null; // Currently selected course ID
-let courseData = {};   // Cached assignments/materials per course ID
+let tokenClient;        // Google OAuth token client
+let accessToken;        // Short-lived access token (expires ~1hr)
+let courses    = [];    // All courses fetched from Classroom API
+let selectedId = null;  // Currently selected course ID
+let courseData = {};    // Cached assignments/materials per course ID
 let activeTab  = 'ACTIVE';
-
-
 let showOwnedOnly = true; // default: show only courses you teach
 
 
@@ -97,14 +95,6 @@ function resetApp() {
 }
 
 
-function toggleOwned() {
-  showOwnedOnly = !showOwnedOnly;
-  document.getElementById('owned-toggle').textContent =
-    showOwnedOnly ? 'Showing: My courses' : 'Showing: All courses';
-  renderCourses();
-}
-
-
 /* ------------------------------------------------------------
    API — Classroom REST calls
    ------------------------------------------------------------ */
@@ -184,12 +174,18 @@ async function fetchSelected() {
    Courses UI — Tabs & Cards
    ------------------------------------------------------------ */
 
+function toggleOwned() {
+  showOwnedOnly = !showOwnedOnly;
+  document.getElementById('owned-toggle').textContent =
+    showOwnedOnly ? 'Showing: My courses' : 'Showing: All courses';
+  renderCourses();
+}
+
 function renderCourses() {
   document.getElementById('setup-section').style.display   = 'none';
   document.getElementById('courses-section').style.display = 'block';
 
   // Filter to courses where user is a teacher (has teacherFolder)
-  // Toggle off to see all courses including joined ones
   const filtered = showOwnedOnly ? courses.filter(c => c.teacherFolder) : courses;
 
   // Group courses by state
@@ -281,6 +277,7 @@ function showDetail(courseId) {
   document.getElementById('detail-title').textContent = course.name;
   const body = document.getElementById('detail-body');
   body.innerHTML = '';
+  document.getElementById('detail-actions').style.display = 'flex';
 
   // Merge assignments and materials into unified topic blocks
   const merged = mergeByTopic(assignments, materials, topicMap);
@@ -342,7 +339,126 @@ function showDetail(courseId) {
 }
 
 function closeDetail() {
-  document.getElementById('detail-section').style.display = 'none';
+  document.getElementById('detail-section').style.display  = 'none';
+  document.getElementById('detail-actions').style.display  = 'flex';
+}
+
+
+/* ------------------------------------------------------------
+   Student Progress Monitor
+   ------------------------------------------------------------ */
+
+async function monitorSelected() {
+  if (!selectedId) return;
+  const btn = document.getElementById('monitor-btn');
+  btn.disabled    = true;
+  btn.textContent = 'Loading…';
+  setStatus('fetch-status', 'Fetching roster…', 'info');
+
+  try {
+    const [rosterData, cwData] = await Promise.all([
+      apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/students?pageSize=100`),
+      apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork?pageSize=100`)
+    ]);
+
+    const students   = rosterData.students || [];
+    const coursework = (cwData.courseWork || []).filter(cw => cw.maxPoints > 0);
+
+    setStatus('fetch-status', 'Fetching submissions…', 'info');
+    const submissionResults = await Promise.all(
+      coursework.map(cw =>
+        apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork/${cw.id}/studentSubmissions?pageSize=200`)
+          .then(d => ({ cwId: cw.id, maxPoints: cw.maxPoints, submissions: d.studentSubmissions || [] }))
+          .catch(() => ({ cwId: cw.id, maxPoints: cw.maxPoints, submissions: [] }))
+      )
+    );
+
+    // Build a map: studentId → { earned, possible, missing }
+    const studentMap = {};
+    students.forEach(s => {
+      studentMap[s.userId] = {
+        name:     s.profile.name.fullName,
+        earned:   0,
+        possible: 0,
+        missing:  0
+      };
+    });
+
+    submissionResults.forEach(({ maxPoints, submissions }) => {
+      submissions.forEach(sub => {
+        const st = studentMap[sub.userId];
+        if (!st) return;
+        if (sub.assignedGrade != null) {
+          // Only count toward possible if the assignment has been graded
+          st.possible += maxPoints;
+          st.earned   += sub.assignedGrade;
+        } else {
+          st.missing += 1;
+        }
+      });
+    });
+
+    setStatus('fetch-status', 'Done!', 'success');
+    showProgressReport(studentMap);
+
+  } catch(e) {
+    setStatus('fetch-status', 'Error: ' + e.message, 'error');
+  }
+
+  btn.disabled    = false;
+  btn.textContent = 'Monitor student progress';
+}
+
+function showProgressReport(studentMap) {
+  const course = courses.find(c => c.id === selectedId);
+
+  // Sort by grade ascending (lowest first — needs attention first)
+  const rows = Object.values(studentMap).sort((a, b) => {
+    const pctA = a.possible > 0 ? a.earned / a.possible : 1;
+    const pctB = b.possible > 0 ? b.earned / b.possible : 1;
+    return pctA - pctB;
+  });
+
+  let html = `
+    <div class="progress-header">
+      <h2>${esc(course.name)} — Student Progress</h2>
+      <div class="progress-legend">
+        <span class="legend-dot dot-red"></span> At risk (≤60%)
+        <span class="legend-dot dot-yellow"></span> Watch (61–75%)
+        <span class="legend-dot dot-green"></span> On track (&gt;75%)
+      </div>
+    </div>
+    <table class="progress-table">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Grade</th>
+          <th>Earned / Possible</th>
+          <th>Missing</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  rows.forEach(s => {
+    const pct      = s.possible > 0 ? (s.earned / s.possible) * 100 : null;
+    const pctLabel = pct !== null ? pct.toFixed(1) + '%' : 'N/A';
+    const rowClass = pct === null ? '' : pct <= 60 ? 'row-red' : pct <= 75 ? 'row-yellow' : 'row-green';
+    html += `
+      <tr class="${rowClass}">
+        <td>${esc(s.name)}</td>
+        <td class="grade-cell">${pctLabel}</td>
+        <td>${s.earned} / ${s.possible}</td>
+        <td>${s.missing > 0 ? s.missing + ' missing' : '—'}</td>
+      </tr>`;
+  });
+
+  html += `</tbody></table>`;
+
+  document.getElementById('detail-title').textContent    = '';
+  document.getElementById('detail-body').innerHTML       = html;
+  document.getElementById('detail-section').style.display = 'block';
+  document.getElementById('detail-actions').style.display = 'none';
+  document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' });
 }
 
 
@@ -409,10 +525,9 @@ function buildPrintHtml(course, data) {
   .course-header { border-bottom: 2px solid #111; padding-bottom: 1rem; margin-bottom: 1.5rem; }
   .course-header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
   .course-meta { font-size: 13px; color: #555; }
-  h2 { font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #555; border-bottom: 0.5px solid #ccc; padding-bottom: 4px; margin: 2rem 0 1rem; }
   .topic-block { margin-bottom: 1.5rem; page-break-inside: avoid; }
-  .sub-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin: 8px 0 4px; }
   .topic-block h3 { font-size: 14px; font-weight: 700; color: #185FA5; margin-bottom: 4px; }
+  .sub-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin: 8px 0 4px; }
   ul { list-style: none; padding-left: 0; }
   li { padding: 8px 0 8px 12px; border-left: 3px solid #e0e0e0; margin-bottom: 6px; page-break-inside: avoid; }
   .item-title { font-size: 14px; font-weight: 600; }
@@ -449,123 +564,8 @@ function buildPrintHtml(course, data) {
 
 
 /* ------------------------------------------------------------
-   Student Progress Monitor
+   Markdown Export
    ------------------------------------------------------------ */
-
-async function monitorSelected() {
-  if (!selectedId) return;
-  const btn = document.getElementById('monitor-btn');
-  btn.disabled    = true;
-  btn.textContent = 'Loading…';
-  setStatus('fetch-status', 'Fetching roster…', 'info');
-
-  try {
-    // Fetch students, coursework, and all submissions in parallel
-    const [rosterData, cwData] = await Promise.all([
-      apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/students?pageSize=100`),
-      apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork?pageSize=100`)
-    ]);
-
-    const students   = rosterData.students || [];
-    const coursework = (cwData.courseWork || []).filter(cw => cw.maxPoints > 0);
-
-    // Fetch all submissions for all graded assignments
-    setStatus('fetch-status', 'Fetching submissions…', 'info');
-    const submissionResults = await Promise.all(
-      coursework.map(cw =>
-        apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork/${cw.id}/studentSubmissions?pageSize=200`)
-          .then(d => ({ cwId: cw.id, maxPoints: cw.maxPoints, submissions: d.studentSubmissions || [] }))
-          .catch(() => ({ cwId: cw.id, maxPoints: cw.maxPoints, submissions: [] }))
-      )
-    );
-
-    // Build a map: studentId → { earned, possible, missing }
-    const studentMap = {};
-    students.forEach(s => {
-      studentMap[s.userId] = {
-        name:     s.profile.name.fullName,
-        earned:   0,
-        possible: 0,
-        missing:  0
-      };
-    });
-
-    submissionResults.forEach(({ maxPoints, submissions }) => {
-      submissions.forEach(sub => {
-        const st = studentMap[sub.userId];
-        if (!st) return;
-        st.possible += maxPoints;
-        if (sub.assignedGrade != null) {
-          st.earned += sub.assignedGrade;
-        } else {
-          st.missing += 1;
-        }
-      });
-    });
-
-    setStatus('fetch-status', 'Done!', 'success');
-    showProgressReport(studentMap);
-
-  } catch(e) {
-    setStatus('fetch-status', 'Error: ' + e.message, 'error');
-  }
-
-  btn.disabled    = false;
-  btn.textContent = 'Monitor student progress';
-}
-
-function showProgressReport(studentMap) {
-  const course = courses.find(c => c.id === selectedId);
-
-  // Sort by grade ascending (lowest first — needs attention first)
-  const rows = Object.values(studentMap).sort((a, b) => {
-    const pctA = a.possible > 0 ? a.earned / a.possible : 1;
-    const pctB = b.possible > 0 ? b.earned / b.possible : 1;
-    return pctA - pctB;
-  });
-
-  // Build report HTML
-  let html = `
-    <div class="progress-header">
-      <h2>${esc(course.name)} — Student Progress</h2>
-      <div class="progress-legend">
-        <span class="legend-dot dot-red"></span> At risk (≤60%)
-        <span class="legend-dot dot-yellow"></span> Watch (61–75%)
-        <span class="legend-dot dot-green"></span> On track (&gt;75%)
-      </div>
-    </div>
-    <table class="progress-table">
-      <thead>
-        <tr>
-          <th>Student</th>
-          <th>Grade</th>
-          <th>Earned / Possible</th>
-          <th>Missing</th>
-        </tr>
-      </thead>
-      <tbody>`;
-
-  rows.forEach(s => {
-    const pct      = s.possible > 0 ? (s.earned / s.possible) * 100 : null;
-    const pctLabel = pct !== null ? pct.toFixed(1) + '%' : 'N/A';
-    const rowClass = pct === null ? '' : pct <= 60 ? 'row-red' : pct <= 75 ? 'row-yellow' : 'row-green';
-    html += `
-      <tr class="${rowClass}">
-        <td>${esc(s.name)}</td>
-        <td class="grade-cell">${pctLabel}</td>
-        <td>${s.earned} / ${s.possible}</td>
-        <td>${s.missing > 0 ? s.missing + ' missing' : '—'}</td>
-      </tr>`;
-  });
-
-  html += `</tbody></table>`;
-
-  // Show in detail section
-  document.getElementById('detail-title').textContent = '';
-  document.getElementById('detail-body').innerHTML    = html;
-  document.getElementById('detail-section').style.display = 'block';
-  document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' });
-}
 
 function downloadSelectedMd() {
   const c = courses.find(x => x.id === selectedId);
@@ -737,8 +737,8 @@ function escHtml(s) {
 
 // Trigger a file download in the browser
 function download(filename, text) {
-  const a   = document.createElement('a');
-  a.href    = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(text);
+  const a    = document.createElement('a');
+  a.href     = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(text);
   a.download = filename;
   a.click();
 }
@@ -778,12 +778,8 @@ function printAttachments(materials) {
   return items.length ? `<div class="item-attachments">${items.join('')}</div>` : '';
 }
 
-/* ------------------------------------------------------------
-   Auto-fill Client ID from config.js if available
-   ------------------------------------------------------------ */
-if (window.CONFIG && CONFIG.clientId) {
-  document.getElementById('client-id').value = CONFIG.clientId;
-}
+// Render attachments as markdown list items
+function attachmentsToMd(materials) {
   if (!materials || !materials.length) return [];
   return materials.map(mat => {
     if (mat.driveFile)    { const f = mat.driveFile.driveFile; return `  - 📄 [${f.title || 'Drive file'}](${f.alternateLink})`; }
@@ -793,3 +789,16 @@ if (window.CONFIG && CONFIG.clientId) {
     return null;
   }).filter(Boolean);
 }
+
+
+/* ------------------------------------------------------------
+   Auto-fill Client ID from config.js if available
+   ------------------------------------------------------------ */
+setTimeout(() => {
+  try {
+    const input = document.getElementById('client-id');
+    if (input && typeof CONFIG !== 'undefined' && CONFIG.clientId) {
+      input.value = CONFIG.clientId;
+    }
+  } catch(e) {}
+}, 100);
