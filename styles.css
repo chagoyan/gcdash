@@ -1,0 +1,386 @@
+/* ============================================================
+   Google Classroom Extractor — Stylesheet
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   Reset & Base
+   ------------------------------------------------------------ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: sans-serif;
+  background: #f5f5f5;
+  color: #222;
+  min-height: 100vh;
+}
+
+
+/* ------------------------------------------------------------
+   Layout
+   ------------------------------------------------------------ */
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+h1 {
+  font-size: 22px;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+
+/* ------------------------------------------------------------
+   Setup Box
+   ------------------------------------------------------------ */
+.setup-box {
+  background: #fff;
+  border: 0.5px solid #ddd;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.setup-box h2 {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.setup-box label {
+  font-size: 13px;
+  color: #555;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.setup-box input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 0.5px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 1rem;
+}
+
+.setup-box input:focus {
+  outline: none;
+  border-color: #888;
+}
+
+.steps {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.8;
+  padding-left: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.steps a { color: #185FA5; }
+
+.steps code {
+  background: #f0f0f0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.token-note {
+  font-size: 12px;
+  color: #888;
+  margin-top: 8px;
+}
+
+
+/* ------------------------------------------------------------
+   Buttons
+   ------------------------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border-radius: 8px;
+  border: 0.5px solid #ccc;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn:hover { background: #f0f0f0; }
+
+.btn-primary {
+  background: #185FA5;
+  color: #fff;
+  border-color: #185FA5;
+}
+
+.btn-primary:hover {
+  background: #0c447c;
+  border-color: #0c447c;
+}
+
+.btn-success {
+  background: #3B6D11;
+  color: #fff;
+  border-color: #3B6D11;
+}
+
+.btn-success:hover {
+  background: #27500a;
+  border-color: #27500a;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+
+/* ------------------------------------------------------------
+   Status Messages
+   ------------------------------------------------------------ */
+.status {
+  font-size: 13px;
+  margin-top: 1rem;
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: none;
+}
+
+.status.info    { background: #e6f1fb; color: #185FA5; display: block; }
+.status.error   { background: #fcebeb; color: #a32d2d; display: block; }
+.status.success { background: #eaf3de; color: #3B6D11; display: block; }
+
+
+/* ------------------------------------------------------------
+   Tabs
+   ------------------------------------------------------------ */
+.courses-section { display: none; }
+
+.courses-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.courses-header h2 {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 1.5rem;
+  border-bottom: 0.5px solid #ddd;
+}
+
+.tab {
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: #888;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+
+.tab:hover { color: #222; }
+
+.tab.active {
+  color: #185FA5;
+  border-bottom-color: #185FA5;
+  font-weight: 500;
+}
+
+.tab .tab-badge {
+  font-size: 11px;
+  background: #f0f0f0;
+  color: #888;
+  padding: 1px 7px;
+  border-radius: 20px;
+  margin-left: 6px;
+}
+
+.tab.active .tab-badge {
+  background: #e6f1fb;
+  color: #185FA5;
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+
+/* ------------------------------------------------------------
+   Course Cards
+   ------------------------------------------------------------ */
+.badge {
+  font-size: 12px;
+  background: #e6f1fb;
+  color: #185FA5;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.course-card {
+  background: #fff;
+  border: 0.5px solid #ddd;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.course-card:hover { border-color: #185FA5; }
+
+.course-card.selected { border: 2px solid #185FA5; }
+
+.course-card h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.course-card .meta {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+/* Course state badge colors */
+.state-ACTIVE      { background: #eaf3de; color: #3B6D11; }
+.state-ARCHIVED    { background: #f1efe8; color: #5f5e5a; }
+.state-PROVISIONED { background: #faeeda; color: #854f0b; }
+
+.course-card .state-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+
+/* ------------------------------------------------------------
+   Detail Panel
+   ------------------------------------------------------------ */
+.detail-section {
+  display: none;
+  background: #fff;
+  border: 0.5px solid #ddd;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.detail-section h2 {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.detail-back {
+  font-size: 13px;
+  color: #185FA5;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  display: inline-block;
+}
+
+.topic-block { margin-bottom: 1.5rem; }
+
+.topic-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #185FA5;
+  background: #e6f1fb;
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 8px;
+}
+
+.item-list { list-style: none; }
+
+.item-list li {
+  padding: 10px 0;
+  border-bottom: 0.5px solid #eee;
+  font-size: 13px;
+}
+
+.item-list li:last-child { border-bottom: none; }
+
+.item-title {
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.item-meta {
+  font-size: 12px;
+  color: #888;
+}
+
+.item-desc {
+  font-size: 12px;
+  color: #555;
+  margin-top: 4px;
+}
+
+.item-attachments {
+  font-size: 12px;
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.item-attachments a {
+  color: #185FA5;
+  text-decoration: none;
+}
+
+.item-attachments a:hover { text-decoration: underline; }
+
+.section-heading {
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  margin: 1rem 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.empty-note {
+  font-size: 13px;
+  color: #aaa;
+  padding: 8px 0;
+}

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Classroom Extractor</title>
+
+  <!-- Google Identity Services — required for OAuth -->
+  <script src="https://accounts.google.com/gsi/client"></script>
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="container">
+
+  <h1>Google Classroom Extractor</h1>
+  <p class="subtitle">Step 1 — Connect · Step 2 — Pick a course · Step 3 — Print or Download</p>
+
+  <!-- --------------------------------------------------------
+       Setup Section
+       Shown on first load. Hidden after successful login.
+  --------------------------------------------------------- -->
+  <div class="setup-box" id="setup-section">
+    <h2>Setup</h2>
+    <ol class="steps">
+      <li>Enable the <strong>Google Classroom API</strong> in <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>.</li>
+      <li>Create an <strong>OAuth 2.0 Client ID</strong> (Web application type).</li>
+      <li>Add <code>http://localhost:8080</code> as an authorized JavaScript origin.</li>
+      <li>Paste your Client ID below and click Connect.</li>
+    </ol>
+    <label for="client-id">OAuth 2.0 Client ID</label>
+    <input type="text" id="client-id" placeholder="123456789-abcdef.apps.googleusercontent.com" />
+    <button class="btn btn-primary" id="connect-btn" onclick="connectGoogle()">Connect with Google</button>
+    <div class="token-note">Your credentials stay in the browser — nothing is sent to any server.</div>
+    <div class="status" id="auth-status"></div>
+  </div>
+
+  <!-- --------------------------------------------------------
+       Courses Section
+       Shown after login. Tabs for Active / Archived / Declined.
+  --------------------------------------------------------- -->
+  <div class="courses-section" id="courses-section">
+    <div class="courses-header">
+      <h2>Your courses</h2>
+      <button class="btn" id="owned-toggle" onclick="toggleOwned()">Showing: My courses</button>
+    </div>
+    <div class="tabs" id="course-tabs"></div>
+    <div id="course-tab-panels"></div>
+    <div class="actions">
+      <button class="btn btn-primary" id="fetch-btn" onclick="fetchSelected()" disabled>Fetch assignments &amp; materials</button>
+      <button class="btn btn-success" id="monitor-btn" onclick="monitorSelected()" disabled>Monitor student progress</button>
+      <button class="btn btn-primary" id="dl-all-btn" onclick="downloadAllMd()">Download all as .md</button>
+      <button class="btn" onclick="resetApp()">Disconnect</button>
+    </div>
+    <div class="status" id="fetch-status"></div>
+  </div>
+
+  <!-- --------------------------------------------------------
+       Detail Section
+       Shown after fetching a course. Displays topics,
+       assignments, materials, and attachments.
+  --------------------------------------------------------- -->
+  <div class="detail-section" id="detail-section">
+    <span class="detail-back" onclick="closeDetail()">← Back to courses</span>
+    <h2 id="detail-title"></h2>
+    <div id="detail-body"></div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="openPrintView()">Print course outline</button>
+      <button class="btn" onclick="downloadSelectedMd()">Download .md</button>
+    </div>
+  </div>
+
+</div><!-- end .container -->
+
+<!-- App logic -->
+<script src="app.js"></script>
+
+</body>
+</html>
