@@ -1,0 +1,11 @@
+
+# ============================================================
+# Netlify Configuration
+# ============================================================
+
+[build]
+  # Run build script before deploying
+  command = "node build.js"
+
+  # Serve files from the root directory
+  publish = "."
