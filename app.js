@@ -19,7 +19,6 @@ let showOwnedOnly = true; // default: show only courses you teach
    UI Utilities
    ------------------------------------------------------------ */
 
-// Set a status message with a type: 'info', 'success', or 'error'
 function setStatus(id, msg, type) {
   const el = document.getElementById(id);
   el.textContent = msg;
@@ -48,7 +47,6 @@ function connectGoogle() {
   try {
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      // Teacher-level read-only scopes
       scope: [
         'https://www.googleapis.com/auth/classroom.courses.readonly',
         'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
@@ -145,16 +143,13 @@ async function fetchSelected() {
     ).catch(e => { throw new Error('Materials: ' + e.message); });
 
     setStatus('fetch-status', 'Fetching topics…', 'info');
-    // Topics may fail if the teacher doesn't have permission — fail gracefully
     const tpData = await apiGet(
       `https://classroom.googleapis.com/v1/courses/${selectedId}/topics?pageSize=100`
     ).catch(() => ({ topic: [] }));
 
-    // Build a topicId → name lookup
     const topicMap = {};
     (tpData.topic || []).forEach(t => { topicMap[t.topicId] = t.name; });
 
-    // Sort by due date / creation time
     const assignments = (awData.courseWork || []).slice().sort((a, b) => toTimestamp(a) - toTimestamp(b));
     const materials   = (mwData.courseWorkMaterial || []).slice().sort((a, b) => toTimestamp(a) - toTimestamp(b));
 
@@ -214,7 +209,6 @@ function enableDragAndDrop(grid, tabKey) {
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
       grid.querySelectorAll('.course-card').forEach(c => c.classList.remove('drag-over'));
-      // Save new order
       const ids = [...grid.querySelectorAll('.course-card')].map(c => c.dataset.id);
       saveOrder(tabKey, ids);
     });
@@ -249,31 +243,23 @@ function enableDragAndDrop(grid, tabKey) {
    ------------------------------------------------------------ */
 
 const COURSE_COLORS = [
-  { label: 'None',            value: null,      },
-  // Blue
-  { label: 'Blue (dark)',     value: '#1A56DB'  },
-  { label: 'Blue (light)',    value: '#93C5FD'  },
-  // Purple
-  { label: 'Purple (dark)',   value: '#7E22CE'  },
-  { label: 'Purple (light)',  value: '#D8B4FE'  },
-  // Green
-  { label: 'Green (dark)',    value: '#166534'  },
-  { label: 'Green (light)',   value: '#86EFAC'  },
-  // Orange
-  { label: 'Orange (dark)',   value: '#C2410C'  },
-  { label: 'Orange (light)',  value: '#FDB37A'  },
-  // Red
-  { label: 'Red (dark)',      value: '#B91C1C'  },
-  { label: 'Red (light)',     value: '#FCA5A5'  },
-  // Yellow
-  { label: 'Yellow (dark)',   value: '#B45309'  },
-  { label: 'Yellow (light)',  value: '#FDE68A'  },
-  // Teal
-  { label: 'Teal (dark)',     value: '#0E7490'  },
-  { label: 'Teal (light)',    value: '#67E8F9'  },
-  // Graphite
-  { label: 'Graphite (dark)', value: '#374151'  },
-  { label: 'Graphite (light)',value: '#9CA3AF'  },
+  { label: 'None',            value: null      },
+  { label: 'Blue (dark)',     value: '#1A56DB' },
+  { label: 'Blue (light)',    value: '#93C5FD' },
+  { label: 'Purple (dark)',   value: '#7E22CE' },
+  { label: 'Purple (light)',  value: '#D8B4FE' },
+  { label: 'Green (dark)',    value: '#166534' },
+  { label: 'Green (light)',   value: '#86EFAC' },
+  { label: 'Orange (dark)',   value: '#C2410C' },
+  { label: 'Orange (light)',  value: '#FDB37A' },
+  { label: 'Red (dark)',      value: '#B91C1C' },
+  { label: 'Red (light)',     value: '#FCA5A5' },
+  { label: 'Yellow (dark)',   value: '#B45309' },
+  { label: 'Yellow (light)',  value: '#FDE68A' },
+  { label: 'Teal (dark)',     value: '#0E7490' },
+  { label: 'Teal (light)',    value: '#67E8F9' },
+  { label: 'Graphite (dark)', value: '#374151' },
+  { label: 'Graphite (light)',value: '#9CA3AF' },
 ];
 
 function getCourseColor(courseId) {
@@ -288,13 +274,11 @@ function setCourseColor(courseId, color) {
   }
 }
 
-// Determine if a color is light or dark and return appropriate text color
 function getTextColor(hex) {
   if (!hex) return '';
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
-  // Perceived brightness formula
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
   return brightness > 160 ? '#333333' : '#ffffff';
 }
@@ -307,7 +291,6 @@ function applyCardColor(div, color) {
     div.style.background  = '#2E2E2E';
     div.style.color       = '#FFFFFF';
   }
-  // Always enforce white border
   div.style.border = '1px solid #FFFFFF';
 }
 
@@ -316,7 +299,6 @@ let openPalette = null;
 function togglePalette(e, courseId, div) {
   e.stopPropagation();
 
-  // Close any open palette
   if (openPalette) {
     openPalette.remove();
     openPalette = null;
@@ -337,7 +319,7 @@ function togglePalette(e, courseId, div) {
       setCourseColor(courseId, c.value);
       applyCardColor(div, c.value);
       const btn = div.querySelector('.color-picker-btn');
-      btn.style.background  = c.value || '#fff';
+      btn.style.background  = c.value || '#2E2E2E';
       btn.style.borderColor = c.value ? getTextColor(c.value) : '#ddd';
       palette.remove();
       openPalette = null;
@@ -348,7 +330,6 @@ function togglePalette(e, courseId, div) {
   div.appendChild(palette);
   openPalette = palette;
 
-  // Close palette when clicking outside
   setTimeout(() => {
     document.addEventListener('click', () => {
       palette.remove();
@@ -373,17 +354,14 @@ function renderCourses() {
   document.getElementById('setup-section').style.display   = 'none';
   document.getElementById('courses-section').style.display = 'block';
 
-  // Filter to courses where user is a teacher (has teacherFolder)
   const filtered = showOwnedOnly ? courses.filter(c => c.teacherFolder) : courses;
 
-  // Group courses by state
   const groups = { ACTIVE: [], ARCHIVED: [], DECLINED: [], OTHER: [] };
   filtered.forEach(c => {
     const s = c.courseState || 'OTHER';
     (groups[s] || groups.OTHER).push(c);
   });
 
-  // Only show tabs that have courses
   const tabDefs = [
     { key: 'ACTIVE',   label: 'Active'   },
     { key: 'ARCHIVED', label: 'Archived' },
@@ -391,7 +369,6 @@ function renderCourses() {
     { key: 'OTHER',    label: 'Other'    }
   ].filter(t => groups[t.key].length > 0);
 
-  // Default to first available tab if current tab is empty
   if (!tabDefs.find(t => t.key === activeTab) && tabDefs.length) {
     activeTab = tabDefs[0].key;
   }
@@ -402,7 +379,6 @@ function renderCourses() {
   panelsEl.innerHTML = '';
 
   tabDefs.forEach(t => {
-    // Tab button
     const btn = document.createElement('button');
     btn.className   = 'tab' + (t.key === activeTab ? ' active' : '');
     btn.dataset.key = t.key;
@@ -410,7 +386,6 @@ function renderCourses() {
     btn.onclick     = () => switchTab(t.key);
     tabsEl.appendChild(btn);
 
-    // Tab panel with course grid
     const panel = document.createElement('div');
     panel.className = 'tab-panel' + (t.key === activeTab ? ' active' : '');
     panel.id        = 'tab-panel-' + t.key;
@@ -425,22 +400,21 @@ function renderCourses() {
       div.dataset.id  = c.id;
       div.onclick     = () => selectCourse(c.id);
 
-      // Apply saved color
       const savedColor = getCourseColor(c.id);
       applyCardColor(div, savedColor);
+      if (c.id === selectedId) div.style.border = '3px solid #FFFFFF';
 
       div.innerHTML = `
         <h3>${esc(c.name)}</h3>
         <div class="meta">${esc(c.section || '')}${c.room ? ' · ' + esc(c.room) : ''}</div>`;
 
-      // Color picker button
-      const btn = document.createElement('div');
-      btn.className = 'color-picker-btn';
-      const textColor = getTextColor(savedColor);
-    btn.style.borderColor = textColor;
-      btn.title = 'Pick a color';
-      btn.onclick = (e) => togglePalette(e, c.id, div);
-      div.appendChild(btn);
+      const colorBtn = document.createElement('div');
+      colorBtn.className = 'color-picker-btn';
+      colorBtn.style.background  = savedColor || '#2E2E2E';
+      colorBtn.style.borderColor = savedColor ? getTextColor(savedColor) : '#ddd';
+      colorBtn.title = 'Pick a color';
+      colorBtn.onclick = (e) => togglePalette(e, c.id, div);
+      div.appendChild(colorBtn);
 
       grid.appendChild(div);
     });
@@ -465,8 +439,6 @@ function selectCourse(id) {
   selectedId = id;
   document.querySelectorAll('.course-card').forEach(el => {
     el.classList.toggle('selected', el.dataset.id === id);
-    // Re-apply border after selection change
-    const color = getCourseColor(el.dataset.id);
     el.style.border = el.dataset.id === id ? '3px solid #FFFFFF' : '1px solid #FFFFFF';
   });
   document.getElementById('fetch-btn').disabled   = false;
@@ -487,7 +459,6 @@ function showDetail(courseId) {
   body.innerHTML = '';
   document.getElementById('detail-actions').style.display = 'flex';
 
-  // Merge assignments and materials into unified topic blocks
   const merged = mergeByTopic(assignments, materials, topicMap);
 
   if (merged.length) {
@@ -564,7 +535,6 @@ async function monitorSelected() {
   setStatus('fetch-status', 'Fetching roster…', 'info');
 
   try {
-    // Fetch ALL students with pagination
     let students = [], studentPageToken = '';
     do {
       const url = `https://classroom.googleapis.com/v1/courses/${selectedId}/students?pageSize=100` +
@@ -586,7 +556,6 @@ async function monitorSelected() {
       )
     );
 
-    // Build a map: studentId → { earned, possible, missing }
     const studentMap = {};
     students.forEach(s => {
       studentMap[s.userId] = {
@@ -602,14 +571,12 @@ async function monitorSelected() {
     today.setHours(0, 0, 0, 0);
 
     submissionResults.forEach(({ maxPoints, dueDate, submissions }) => {
-      // Determine if assignment is past due
       let isPastDue = true;
       if (dueDate) {
         const due = new Date(dueDate.year, (dueDate.month || 1) - 1, dueDate.day || 1);
         isPastDue = due <= today;
       }
 
-      // Track which students have a submission record for this assignment
       const submittedStudents = new Set(submissions.map(s => s.userId));
 
       submissions.forEach(sub => {
@@ -619,16 +586,11 @@ async function monitorSelected() {
           st.possible += maxPoints;
           st.earned   += sub.assignedGrade;
         } else if (isPastDue) {
-          // Only count as missing if past due AND not submitted
-          // Submission states: NEW, CREATED, TURNED_IN, RETURNED, RECLAIMED_BY_STUDENT
           const isSubmitted = sub.state === 'TURNED_IN' || sub.state === 'RETURNED';
-          if (!isSubmitted) {
-            st.missing += 1;
-          }
+          if (!isSubmitted) st.missing += 1;
         }
       });
 
-      // Students with NO submission record at all — count as missing if past due
       if (isPastDue) {
         Object.keys(studentMap).forEach(userId => {
           if (!submittedStudents.has(userId)) {
@@ -652,7 +614,6 @@ async function monitorSelected() {
 function showProgressReport(studentMap, courseId) {
   const course = courses.find(c => c.id === courseId);
 
-  // Sort by grade ascending (lowest first — needs attention first)
   const rows = Object.values(studentMap).sort((a, b) => {
     const pctA = a.possible > 0 ? a.earned / a.possible : 1;
     const pctB = b.possible > 0 ? b.earned / b.possible : 1;
@@ -704,20 +665,22 @@ function showProgressReport(studentMap, courseId) {
 
 /* ------------------------------------------------------------
    Print View
-   Opens a clean printable course outline in a new tab.
    ------------------------------------------------------------ */
 
-function openPrintView() {
+function openPrintView(mode) {
   const course = courses.find(c => c.id === selectedId);
   if (!course) return;
-  const html = buildPrintHtml(course, courseData[selectedId]);
+  const data = courseData[selectedId];
+  if (!data) return;
+  const html = buildPrintHtml(course, data, mode);
   const w = window.open('', '_blank');
   w.document.write(html);
   w.document.close();
 }
 
-function buildPrintHtml(course, data) {
-  const merged = mergeByTopic(data.assignments, data.materials, data.topicMap);
+function buildPrintHtml(course, data, mode) {
+  const merged    = mergeByTopic(data.assignments, data.materials, data.topicMap);
+  const isSummary = mode === 'summary';
   let body = '';
 
   merged.forEach(g => {
@@ -726,11 +689,17 @@ function buildPrintHtml(course, data) {
     if (g.assignments.length) {
       body += `<div class="sub-label">Assignments</div><ul>`;
       g.assignments.forEach(a => {
-        body += `<li>
-          <div class="item-title">${escHtml(a.title)}${a.maxPoints ? ' <span class="pts">' + a.maxPoints + ' pts</span>' : ''}</div>
-          ${a.description ? `<div class="item-desc">${escHtml(a.description)}</div>` : ''}
-          ${printAttachments(a.materials)}
-        </li>`;
+        if (isSummary) {
+          body += `<li>
+            <div class="item-title">${escHtml(a.title)}${a.maxPoints ? ' <span class="pts">' + a.maxPoints + ' pts</span>' : ''}</div>
+          </li>`;
+        } else {
+          body += `<li>
+            <div class="item-title">${escHtml(a.title)}${a.maxPoints ? ' <span class="pts">' + a.maxPoints + ' pts</span>' : ''}</div>
+            ${a.description ? `<div class="item-desc">${escHtml(a.description)}</div>` : ''}
+            ${printAttachments(a.materials)}
+          </li>`;
+        }
       });
       body += `</ul>`;
     }
@@ -738,11 +707,15 @@ function buildPrintHtml(course, data) {
     if (g.materials.length) {
       body += `<div class="sub-label">Materials</div><ul>`;
       g.materials.forEach(m => {
-        body += `<li>
-          <div class="item-title">${escHtml(m.title)}</div>
-          ${m.description ? `<div class="item-desc">${escHtml(m.description)}</div>` : ''}
-          ${printAttachments(m.materials)}
-        </li>`;
+        if (isSummary) {
+          body += `<li><div class="item-title">${escHtml(m.title)}</div></li>`;
+        } else {
+          body += `<li>
+            <div class="item-title">${escHtml(m.title)}</div>
+            ${m.description ? `<div class="item-desc">${escHtml(m.description)}</div>` : ''}
+            ${printAttachments(m.materials)}
+          </li>`;
+        }
       });
       body += `</ul>`;
     }
@@ -754,27 +727,28 @@ function buildPrintHtml(course, data) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>${escHtml(course.name)} — Course Outline</title>
+<title>${escHtml(course.name)} — ${isSummary ? 'Summary' : 'Detailed'} Outline</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Georgia, serif; color: #111; max-width: 780px; margin: 0 auto; padding: 2rem; }
   .no-print { margin-bottom: 1.5rem; }
   @media print { .no-print { display: none; } }
-  button { padding: 8px 20px; font-size: 14px; background: #185FA5; color: #fff; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px; }
+  button { padding: 8px 20px; font-size: 14px; background: #F26522; color: #fff; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px; }
   button.secondary { background: #fff; color: #333; border: 1px solid #ccc; }
   .course-header { border-bottom: 2px solid #111; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+  .mode-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #F26522; margin-bottom: 6px; display: block; }
   .course-header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
   .course-meta { font-size: 13px; color: #555; }
-  .topic-block { margin-bottom: 1.5rem; page-break-inside: avoid; }
-  .topic-block h3 { font-size: 14px; font-weight: 700; color: #185FA5; margin-bottom: 4px; }
-  .sub-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin: 8px 0 4px; }
+  .topic-block { margin-bottom: ${isSummary ? '1rem' : '1.5rem'}; page-break-inside: avoid; }
+  .topic-block h3 { font-size: 14px; font-weight: 700; color: #F26522; margin-bottom: 4px; }
+  .sub-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin: 6px 0 3px; }
   ul { list-style: none; padding-left: 0; }
-  li { padding: 8px 0 8px 12px; border-left: 3px solid #e0e0e0; margin-bottom: 6px; page-break-inside: avoid; }
-  .item-title { font-size: 14px; font-weight: 600; }
+  li { padding: ${isSummary ? '4px 0 4px 12px' : '8px 0 8px 12px'}; border-left: 3px solid #e0e0e0; margin-bottom: ${isSummary ? '3px' : '6px'}; page-break-inside: avoid; }
+  .item-title { font-size: ${isSummary ? '13px' : '14px'}; font-weight: 600; }
   .pts { font-size: 12px; font-weight: 400; color: #888; margin-left: 6px; }
   .item-desc { font-size: 13px; color: #444; margin-top: 3px; line-height: 1.5; white-space: pre-wrap; }
   .item-attachments { margin-top: 5px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
-  .item-attachments a { color: #185FA5; text-decoration: none; }
+  .item-attachments a { color: #F26522; text-decoration: none; }
   .footer { margin-top: 3rem; font-size: 11px; color: #aaa; border-top: 0.5px solid #eee; padding-top: 8px; }
   @media print {
     body { padding: 1rem; }
@@ -790,6 +764,7 @@ function buildPrintHtml(course, data) {
     <button class="secondary" onclick="window.close()">Close</button>
   </div>
   <div class="course-header">
+    <span class="mode-label">${isSummary ? 'Summary Outline' : 'Detailed Outline'}</span>
     <h1>${escHtml(course.name)}</h1>
     <div class="course-meta">
       ${course.section ? escHtml(course.section) : ''}${course.room ? ' &nbsp;·&nbsp; Room ' + escHtml(course.room) : ''}
@@ -850,7 +825,6 @@ function courseToMd(c, data) {
     merged.forEach(g => {
       lines.push('## ' + g.topicName);
       lines.push('');
-
       if (g.assignments.length) {
         lines.push('### Assignments');
         lines.push('');
@@ -865,7 +839,6 @@ function courseToMd(c, data) {
           lines.push('');
         });
       }
-
       if (g.materials.length) {
         lines.push('### Materials');
         lines.push('');
@@ -889,7 +862,6 @@ function courseToMd(c, data) {
    Helpers — Grouping, Sorting, Formatting
    ------------------------------------------------------------ */
 
-// Merge assignments and materials into unified topic blocks, sorted by topic
 function mergeByTopic(assignments, materials, topicMap) {
   const groups = {};
 
@@ -923,7 +895,6 @@ function mergeByTopic(assignments, materials, topicMap) {
     });
 }
 
-// Group items by topic and sort: non-week topics first, then week order
 function groupByTopic(items, topicMap) {
   const groups = {};
   items.forEach(item => {
@@ -948,7 +919,6 @@ function groupByTopic(items, topicMap) {
     });
 }
 
-// Convert due date / creation time to a sortable timestamp
 function toTimestamp(item) {
   if (item.dueDate) {
     const d = item.dueDate;
@@ -959,23 +929,19 @@ function toTimestamp(item) {
   return 0;
 }
 
-// Format a Classroom API date object { year, month, day } → YYYY-MM-DD
 function fmtDate(d) {
   if (!d) return '';
   return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
 }
 
-// Escape HTML special characters for safe innerHTML insertion
 function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// Escape HTML for print view (also escapes quotes)
 function escHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Trigger a file download in the browser
 function download(filename, text) {
   const a    = document.createElement('a');
   a.href     = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(text);
@@ -992,7 +958,6 @@ function slugify(s) {
    Helpers — Attachments
    ------------------------------------------------------------ */
 
-// Render attachments as clickable links for the detail panel
 function renderAttachments(materials) {
   if (!materials || !materials.length) return '';
   const items = materials.map(mat => {
@@ -1005,7 +970,6 @@ function renderAttachments(materials) {
   return items.length ? `<div class="item-attachments">${items.join(' &nbsp; ')}</div>` : '';
 }
 
-// Render attachments as clickable links for the print view
 function printAttachments(materials) {
   if (!materials || !materials.length) return '';
   const items = materials.map(mat => {
@@ -1018,7 +982,6 @@ function printAttachments(materials) {
   return items.length ? `<div class="item-attachments">${items.join('')}</div>` : '';
 }
 
-// Render attachments as markdown list items
 function attachmentsToMd(materials) {
   if (!materials || !materials.length) return [];
   return materials.map(mat => {
