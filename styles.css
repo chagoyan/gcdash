@@ -546,23 +546,20 @@ h1 {
 
 .progress-table tbody tr:last-child td { border-bottom: none; }
 
-/* Color coding */
-.row-red    { background: #fff5f5; }
-.row-yellow { background: #fffbf0; }
-.row-green  { background: #f6fbee; }
+/* Color coding — adjusted for dark background */
+.row-red    { background: #2a1010; }
+.row-yellow { background: #2a2010; }
+.row-green  { background: #0f2010; }
 
 .row-red    td:first-child { border-left: 3px solid #E24B4A; }
 .row-yellow td:first-child { border-left: 3px solid #EF9F27; }
 .row-green  td:first-child { border-left: 3px solid #639922; }
 
-.grade-cell {
-  font-weight: 500;
-  font-size: 14px;
-}
+.grade-cell { font-weight: 500; font-size: 14px; }
 
-.row-red    .grade-cell { color: #A32D2D; }
-.row-yellow .grade-cell { color: #854F0B; }
-.row-green  .grade-cell { color: #3B6D11; }
+.row-red    .grade-cell { color: #ff6b6b; }
+.row-yellow .grade-cell { color: #ffd166; }
+.row-green  .grade-cell { color: #86EFAC; }
 
 .student-link {
   color: var(--orange);
