@@ -806,18 +806,19 @@ async function downloadAllMd() {
 
 function courseToMd(c, data) {
   const lines = [];
-  lines.push('# ' + (c.name || 'Untitled Course'));
-  lines.push('');
-  lines.push('## Course info');
-  lines.push('');
-  if (c.section)        lines.push('- **Section:** ' + c.section);
-  if (c.room)           lines.push('- **Room:** ' + c.room);
-  if (c.courseState)    lines.push('- **State:** ' + c.courseState);
-  if (c.creationTime)   lines.push('- **Created:** ' + c.creationTime.split('T')[0]);
-  if (c.updateTime)     lines.push('- **Updated:** ' + c.updateTime.split('T')[0]);
-  if (c.enrollmentCode) lines.push('- **Enrollment code:** ' + c.enrollmentCode);
-  if (c.alternateLink)  lines.push('- **Classroom link:** ' + c.alternateLink);
-  if (c.description)    { lines.push(''); lines.push('> ' + c.description.replace(/\n/g, '  \n> ')); }
+
+  // Frontmatter — used by Astro content collections
+  lines.push('---');
+  lines.push(`title: "${(c.name || 'Untitled Course').replace(/"/g, '\\"')}"`);
+  if (c.section)        lines.push(`section: "${c.section}"`);
+  if (c.room)           lines.push(`room: "${c.room}"`);
+  if (c.courseState)    lines.push(`state: "${c.courseState}"`);
+  if (c.creationTime)   lines.push(`createdAt: "${c.creationTime.split('T')[0]}"`);
+  if (c.updateTime)     lines.push(`updatedAt: "${c.updateTime.split('T')[0]}"`);
+  if (c.enrollmentCode) lines.push(`enrollmentCode: "${c.enrollmentCode}"`);
+  if (c.alternateLink)  lines.push(`classroomUrl: "${c.alternateLink}"`);
+  if (c.description)    lines.push(`description: "${c.description.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`);
+  lines.push('---');
   lines.push('');
 
   if (data) {
