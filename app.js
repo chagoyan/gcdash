@@ -368,8 +368,8 @@ async function monitorSelected() {
     const submissionResults = await Promise.all(
       coursework.map(cw =>
         apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork/${cw.id}/studentSubmissions?pageSize=200`)
-          .then(d => ({ cwId: cw.id, maxPoints: cw.maxPoints, submissions: d.studentSubmissions || [] }))
-          .catch(() => ({ cwId: cw.id, maxPoints: cw.maxPoints, submissions: [] }))
+          .then(d => ({ cwId: cw.id, maxPoints: cw.maxPoints, dueDate: cw.dueDate, submissions: d.studentSubmissions || [] }))
+          .catch(() => ({ cwId: cw.id, maxPoints: cw.maxPoints, dueDate: cw.dueDate, submissions: [] }))
       )
     );
 
@@ -384,7 +384,17 @@ async function monitorSelected() {
       };
     });
 
-    submissionResults.forEach(({ maxPoints, submissions }) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    submissionResults.forEach(({ maxPoints, dueDate, submissions }) => {
+      // Determine if assignment is past due
+      let isPastDue = true;
+      if (dueDate) {
+        const due = new Date(dueDate.year, (dueDate.month || 1) - 1, dueDate.day || 1);
+        isPastDue = due <= today;
+      }
+
       submissions.forEach(sub => {
         const st = studentMap[sub.userId];
         if (!st) return;
@@ -392,7 +402,8 @@ async function monitorSelected() {
           // Only count toward possible if the assignment has been graded
           st.possible += maxPoints;
           st.earned   += sub.assignedGrade;
-        } else {
+        } else if (isPastDue) {
+          // Only count as missing if past due and not submitted
           st.missing += 1;
         }
       });
@@ -454,8 +465,8 @@ function showProgressReport(studentMap) {
 
   html += `</tbody></table>`;
 
-  document.getElementById('detail-title').textContent    = '';
-  document.getElementById('detail-body').innerHTML       = html;
+  document.getElementById('detail-title').textContent     = '';
+  document.getElementById('detail-body').innerHTML        = html;
   document.getElementById('detail-section').style.display = 'block';
   document.getElementById('detail-actions').style.display = 'none';
   document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' });
