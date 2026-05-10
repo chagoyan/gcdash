@@ -1,6 +1,23 @@
 /* ============================================================
    Google Classroom Extractor — Stylesheet
+   School colors: Orange, Black, White, Gray
    ============================================================ */
+
+
+/* ------------------------------------------------------------
+   CSS Variables — School Color Palette
+   ------------------------------------------------------------ */
+:root {
+  --orange:       #F26522;
+  --orange-dark:  #C74E0A;
+  --orange-light: #3D1F0A;  /* Dark tint for black bg */
+  --black:        #111111;  /* Page background */
+  --gray-dark:    #CCCCCC;  /* Secondary text */
+  --gray-mid:     #888888;  /* Muted text */
+  --gray-light:   #2E2E2E;  /* Borders */
+  --gray-bg:      #1A1A1A;  /* Card/panel background */
+  --white:        #FFFFFF;
+}
 
 
 /* ------------------------------------------------------------
@@ -14,8 +31,8 @@
 
 body {
   font-family: sans-serif;
-  background: #f5f5f5;
-  color: #222;
+  background: var(--black);
+  color: var(--white);
   min-height: 100vh;
 }
 
@@ -31,13 +48,14 @@ body {
 
 h1 {
   font-size: 22px;
-  font-weight: 500;
+  font-weight: 700;
   margin-bottom: 0.25rem;
+  color: var(--white);
 }
 
 .subtitle {
   font-size: 14px;
-  color: #666;
+  color: var(--gray-mid);
   margin-bottom: 2rem;
 }
 
@@ -46,8 +64,8 @@ h1 {
    Setup Box
    ------------------------------------------------------------ */
 .setup-box {
-  background: #fff;
-  border: 0.5px solid #ddd;
+  background: var(--gray-bg);
+  border: 0.5px solid var(--gray-light);
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
@@ -55,13 +73,14 @@ h1 {
 
 .setup-box h2 {
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 1rem;
+  color: var(--white);
 }
 
 .setup-box label {
   font-size: 13px;
-  color: #555;
+  color: var(--gray-dark);
   display: block;
   margin-bottom: 4px;
 }
@@ -69,29 +88,31 @@ h1 {
 .setup-box input {
   width: 100%;
   padding: 8px 12px;
-  border: 0.5px solid #ccc;
+  border: 0.5px solid var(--gray-light);
   border-radius: 8px;
   font-size: 14px;
   margin-bottom: 1rem;
+  background: var(--black);
+  color: var(--white);
 }
 
 .setup-box input:focus {
   outline: none;
-  border-color: #888;
+  border-color: var(--orange);
 }
 
 .steps {
   font-size: 13px;
-  color: #555;
+  color: var(--gray-dark);
   line-height: 1.8;
   padding-left: 1.2rem;
   margin-bottom: 1rem;
 }
 
-.steps a { color: #185FA5; }
+.steps a { color: var(--orange); }
 
 .steps code {
-  background: #f0f0f0;
+  background: var(--gray-bg);
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 12px;
@@ -99,7 +120,7 @@ h1 {
 
 .token-note {
   font-size: 12px;
-  color: #888;
+  color: var(--gray-mid);
   margin-top: 8px;
 }
 
@@ -113,35 +134,34 @@ h1 {
   gap: 8px;
   padding: 9px 20px;
   border-radius: 8px;
-  border: 0.5px solid #ccc;
-  background: #fff;
+  border: 1px solid var(--white);
+  background: var(--gray-bg);
   font-size: 14px;
   cursor: pointer;
   transition: background 0.15s;
+  color: var(--white);
 }
 
-.btn:hover { background: #f0f0f0; }
+.btn:hover { background: var(--gray-light); }
 
 .btn-primary {
-  background: #185FA5;
-  color: #fff;
-  border-color: #185FA5;
+  background: var(--orange);
+  color: var(--white);
+  border: 1px solid var(--white);
 }
 
 .btn-primary:hover {
-  background: #0c447c;
-  border-color: #0c447c;
+  background: var(--orange-dark);
 }
 
 .btn-success {
-  background: #3B6D11;
-  color: #fff;
-  border-color: #3B6D11;
+  background: var(--gray-mid);
+  color: var(--white);
+  border: 1px solid var(--white);
 }
 
 .btn-success:hover {
-  background: #27500a;
-  border-color: #27500a;
+  background: var(--gray-dark);
 }
 
 .btn:disabled {
@@ -168,7 +188,7 @@ h1 {
   display: none;
 }
 
-.status.info    { background: #e6f1fb; color: #185FA5; display: block; }
+.status.info    { background: var(--orange-light); color: var(--orange-dark); display: block; }
 .status.error   { background: #fcebeb; color: #a32d2d; display: block; }
 .status.success { background: #eaf3de; color: #3B6D11; display: block; }
 
@@ -187,14 +207,15 @@ h1 {
 
 .courses-header h2 {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--white);
 }
 
 .tabs {
   display: flex;
   gap: 4px;
   margin-bottom: 1.5rem;
-  border-bottom: 0.5px solid #ddd;
+  border-bottom: 0.5px solid var(--gray-light);
 }
 
 .tab {
@@ -203,32 +224,32 @@ h1 {
   cursor: pointer;
   border: none;
   background: none;
-  color: #888;
+  color: var(--gray-mid);
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   transition: color 0.15s;
 }
 
-.tab:hover { color: #222; }
+.tab:hover { color: var(--white); }
 
 .tab.active {
-  color: #185FA5;
-  border-bottom-color: #185FA5;
+  color: var(--orange);
+  border-bottom-color: var(--orange);
   font-weight: 500;
 }
 
 .tab .tab-badge {
   font-size: 11px;
-  background: #f0f0f0;
-  color: #888;
+  background: var(--gray-light);
+  color: var(--gray-mid);
   padding: 1px 7px;
   border-radius: 20px;
   margin-left: 6px;
 }
 
 .tab.active .tab-badge {
-  background: #e6f1fb;
-  color: #185FA5;
+  background: var(--orange-light);
+  color: var(--orange-dark);
 }
 
 .tab-panel { display: none; }
@@ -240,8 +261,8 @@ h1 {
    ------------------------------------------------------------ */
 .badge {
   font-size: 12px;
-  background: #e6f1fb;
-  color: #185FA5;
+  background: var(--orange-light);
+  color: var(--orange-dark);
   padding: 3px 10px;
   border-radius: 20px;
 }
@@ -254,17 +275,17 @@ h1 {
 }
 
 .course-card {
-  background: #fff;
-  border: 0.5px solid #ddd;
+  background: var(--white);
+  border: 0.5px solid var(--gray-light);
   border-radius: 12px;
   padding: 1rem 1.25rem;
-  cursor: pointer;
+  cursor: grab;
   transition: border-color 0.15s;
+  position: relative;
 }
 
-.course-card:hover { border-color: #185FA5; }
-
-.course-card.selected { border: 2px solid #185FA5; }
+.course-card:hover { border-color: var(--orange); }
+.course-card.selected { border: 2px solid var(--orange); }
 
 .course-card h3 {
   font-size: 14px;
@@ -278,6 +299,31 @@ h1 {
   opacity: 0.85;
   margin-bottom: 8px;
 }
+
+/* Course state badge colors */
+.state-ACTIVE      { background: #eaf3de; color: #3B6D11; }
+.state-ARCHIVED    { background: #f1efe8; color: #5f5e5a; }
+.state-PROVISIONED { background: #faeeda; color: #854f0b; }
+
+.course-card .state-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+
+/* ------------------------------------------------------------
+   Drag and Drop
+   ------------------------------------------------------------ */
+.course-card.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.course-card.drag-over {
+  border: 2px dashed var(--orange);
+}
+
 
 /* ------------------------------------------------------------
    Course Card Color Picker
@@ -301,15 +347,15 @@ h1 {
   position: absolute;
   top: 30px;
   right: 8px;
-  background: #fff;
-  border: 0.5px solid #ddd;
+  background: var(--gray-bg);
+  border: 0.5px solid var(--gray-light);
   border-radius: 10px;
   padding: 8px;
   display: grid;
   grid-template-columns: repeat(2, 20px);
   gap: 6px;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
 .color-swatch {
@@ -324,48 +370,122 @@ h1 {
 .color-swatch:hover { transform: scale(1.2); }
 .color-swatch.selected { border-color: #333; }
 .color-swatch.none {
-  background: #fff;
-  border: 2px solid #ddd;
+  background: var(--white);
+  border: 2px solid var(--gray-light);
   position: relative;
 }
 .color-swatch.none::after {
   content: '✕';
   font-size: 10px;
-  color: #aaa;
+  color: var(--gray-mid);
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
 }
 
+
 /* ------------------------------------------------------------
-   Drag and Drop
+   Detail Panel
    ------------------------------------------------------------ */
-.course-card.dragging {
-  opacity: 0.4;
-  cursor: grabbing;
+.detail-section {
+  display: none;
+  background: var(--gray-bg);
+  border: 0.5px solid var(--gray-light);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
 }
 
-.course-card.drag-over {
-  border: 2px dashed #185FA5;
+.detail-section h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--white);
 }
 
-.course-card {
-  position: relative;
-  cursor: grab;
+.detail-back {
+  font-size: 13px;
+  color: var(--orange);
+  cursor: pointer;
+  margin-bottom: 1rem;
+  display: inline-block;
 }
 
-.course-card .state-badge {
-  font-size: 11px;
-  padding: 2px 8px;
+.topic-block { margin-bottom: 1.5rem; }
+
+.topic-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--orange-dark);
+  background: var(--orange-light);
+  display: inline-block;
+  padding: 3px 10px;
   border-radius: 20px;
+  margin-bottom: 8px;
+}
+
+.item-list { list-style: none; }
+
+.item-list li {
+  padding: 10px 0;
+  border-bottom: 0.5px solid var(--gray-light);
+  font-size: 13px;
+}
+
+.item-list li:last-child { border-bottom: none; }
+
+.item-title {
+  font-weight: 500;
+  margin-bottom: 2px;
+  color: var(--white);
+}
+
+.item-meta {
+  font-size: 12px;
+  color: var(--gray-mid);
+}
+
+.item-desc {
+  font-size: 12px;
+  color: var(--gray-dark);
+  margin-top: 4px;
+}
+
+.item-attachments {
+  font-size: 12px;
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.item-attachments a {
+  color: var(--orange);
+  text-decoration: none;
+}
+
+.item-attachments a:hover { text-decoration: underline; }
+
+.section-heading {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-dark);
+  margin: 1rem 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.empty-note {
+  font-size: 13px;
+  color: var(--gray-mid);
+  padding: 8px 0;
 }
 
 
 /* ------------------------------------------------------------
    Student Progress Report
    ------------------------------------------------------------ */
-
 .progress-header {
   display: flex;
   align-items: center;
@@ -377,7 +497,8 @@ h1 {
 
 .progress-header h2 {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--white);
 }
 
 .progress-legend {
@@ -385,7 +506,7 @@ h1 {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: #555;
+  color: var(--gray-dark);
 }
 
 .legend-dot {
@@ -410,16 +531,16 @@ h1 {
   text-align: left;
   font-weight: 500;
   font-size: 12px;
-  color: #888;
+  color: var(--gray-mid);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 8px 12px;
-  border-bottom: 0.5px solid #ddd;
+  border-bottom: 0.5px solid var(--gray-light);
 }
 
 .progress-table td {
   padding: 14px 12px;
-  border-bottom: 0.5px solid #f0f0f0;
+  border-bottom: 0.5px solid var(--gray-light);
   line-height: 1.6;
 }
 
@@ -439,107 +560,14 @@ h1 {
   font-size: 14px;
 }
 
-.student-link {
-  color: #185FA5;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.student-link:hover {
-  text-decoration: underline;
-}
-
 .row-red    .grade-cell { color: #A32D2D; }
 .row-yellow .grade-cell { color: #854F0B; }
 .row-green  .grade-cell { color: #3B6D11; }
-.detail-section {
-  display: none;
-  background: #fff;
-  border: 0.5px solid #ddd;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-top: 1.5rem;
-}
 
-.detail-section h2 {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 1rem;
-}
-
-.detail-back {
-  font-size: 13px;
-  color: #185FA5;
-  cursor: pointer;
-  margin-bottom: 1rem;
-  display: inline-block;
-}
-
-.topic-block { margin-bottom: 1.5rem; }
-
-.topic-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #185FA5;
-  background: #e6f1fb;
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 20px;
-  margin-bottom: 8px;
-}
-
-.item-list { list-style: none; }
-
-.item-list li {
-  padding: 10px 0;
-  border-bottom: 0.5px solid #eee;
-  font-size: 13px;
-}
-
-.item-list li:last-child { border-bottom: none; }
-
-.item-title {
-  font-weight: 500;
-  margin-bottom: 2px;
-}
-
-.item-meta {
-  font-size: 12px;
-  color: #888;
-}
-
-.item-desc {
-  font-size: 12px;
-  color: #555;
-  margin-top: 4px;
-}
-
-.item-attachments {
-  font-size: 12px;
-  margin-top: 5px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.item-attachments a {
-  color: #185FA5;
+.student-link {
+  color: var(--orange);
   text-decoration: none;
-}
-
-.item-attachments a:hover { text-decoration: underline; }
-
-.section-heading {
-  font-size: 13px;
   font-weight: 500;
-  color: #555;
-  margin: 1rem 0 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
-.empty-note {
-  font-size: 13px;
-  color: #aaa;
-  padding: 8px 0;
-}
+.student-link:hover { text-decoration: underline; }

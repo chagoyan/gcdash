@@ -301,14 +301,14 @@ function getTextColor(hex) {
 
 function applyCardColor(div, color) {
   if (color) {
-    div.style.background   = color;
-    div.style.borderColor  = color;
-    div.style.color        = getTextColor(color);
+    div.style.background  = color;
+    div.style.color       = getTextColor(color);
   } else {
-    div.style.background  = '';
-    div.style.borderColor = '';
-    div.style.color       = '';
+    div.style.background  = '#2E2E2E';
+    div.style.color       = '#FFFFFF';
   }
+  // Always enforce white border
+  div.style.border = '1px solid #FFFFFF';
 }
 
 let openPalette = null;
@@ -465,6 +465,9 @@ function selectCourse(id) {
   selectedId = id;
   document.querySelectorAll('.course-card').forEach(el => {
     el.classList.toggle('selected', el.dataset.id === id);
+    // Re-apply border after selection change
+    const color = getCourseColor(el.dataset.id);
+    el.style.border = el.dataset.id === id ? '3px solid #FFFFFF' : '1px solid #FFFFFF';
   });
   document.getElementById('fetch-btn').disabled   = false;
   document.getElementById('monitor-btn').disabled = false;
