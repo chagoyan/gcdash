@@ -8,7 +8,7 @@
    ------------------------------------------------------------ */
 * {
   box-sizing: border-box;
-  margin: 1;
+  margin: 0;
   padding: 0;
 }
 
@@ -88,9 +88,7 @@ h1 {
   margin-bottom: 1rem;
 }
 
-.steps a {
-  color: #185FA5;
-}
+.steps a { color: #185FA5; }
 
 .steps code {
   background: #f0f0f0;
@@ -122,9 +120,7 @@ h1 {
   transition: background 0.15s;
 }
 
-.btn:hover {
-  background: #f0f0f0;
-}
+.btn:hover { background: #f0f0f0; }
 
 .btn-primary {
   background: #185FA5;
@@ -172,31 +168,15 @@ h1 {
   display: none;
 }
 
-.status.info {
-  background: #e6f1fb;
-  color: #185FA5;
-  display: block;
-}
-
-.status.error {
-  background: #fcebeb;
-  color: #a32d2d;
-  display: block;
-}
-
-.status.success {
-  background: #eaf3de;
-  color: #3B6D11;
-  display: block;
-}
+.status.info    { background: #e6f1fb; color: #185FA5; display: block; }
+.status.error   { background: #fcebeb; color: #a32d2d; display: block; }
+.status.success { background: #eaf3de; color: #3B6D11; display: block; }
 
 
 /* ------------------------------------------------------------
    Tabs
    ------------------------------------------------------------ */
-.courses-section {
-  display: none;
-}
+.courses-section { display: none; }
 
 .courses-header {
   display: flex;
@@ -229,9 +209,7 @@ h1 {
   transition: color 0.15s;
 }
 
-.tab:hover {
-  color: #222;
-}
+.tab:hover { color: #222; }
 
 .tab.active {
   color: #185FA5;
@@ -253,13 +231,8 @@ h1 {
   color: #185FA5;
 }
 
-.tab-panel {
-  display: none;
-}
-
-.tab-panel.active {
-  display: block;
-}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
 
 
 /* ------------------------------------------------------------
@@ -289,13 +262,9 @@ h1 {
   transition: border-color 0.15s;
 }
 
-.course-card:hover {
-  border-color: #185FA5;
-}
+.course-card:hover { border-color: #185FA5; }
 
-.course-card.selected {
-  border: 2px solid #185FA5;
-}
+.course-card.selected { border: 2px solid #185FA5; }
 
 .course-card h3 {
   font-size: 14px;
@@ -310,20 +279,9 @@ h1 {
 }
 
 /* Course state badge colors */
-.state-ACTIVE {
-  background: #eaf3de;
-  color: #3B6D11;
-}
-
-.state-ARCHIVED {
-  background: #f1efe8;
-  color: #5f5e5a;
-}
-
-.state-PROVISIONED {
-  background: #faeeda;
-  color: #854f0b;
-}
+.state-ACTIVE      { background: #eaf3de; color: #3B6D11; }
+.state-ARCHIVED    { background: #f1efe8; color: #5f5e5a; }
+.state-PROVISIONED { background: #faeeda; color: #854f0b; }
 
 .course-card .state-badge {
   font-size: 11px;
@@ -333,8 +291,95 @@ h1 {
 
 
 /* ------------------------------------------------------------
-   Detail Panel
+   Student Progress Report
    ------------------------------------------------------------ */
+
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.progress-header h2 {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.progress-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #555;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.dot-red    { background: #E24B4A; }
+.dot-yellow { background: #EF9F27; }
+.dot-green  { background: #639922; }
+
+.progress-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.progress-table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border-bottom: 0.5px solid #ddd;
+}
+
+.progress-table td {
+  padding: 14px 12px;
+  border-bottom: 0.5px solid #f0f0f0;
+  line-height: 1.6;
+}
+
+.progress-table tbody tr:last-child td { border-bottom: none; }
+
+/* Color coding */
+.row-red    { background: #fff5f5; }
+.row-yellow { background: #fffbf0; }
+.row-green  { background: #f6fbee; }
+
+.row-red    td:first-child { border-left: 3px solid #E24B4A; }
+.row-yellow td:first-child { border-left: 3px solid #EF9F27; }
+.row-green  td:first-child { border-left: 3px solid #639922; }
+
+.grade-cell {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.student-link {
+  color: #185FA5;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.student-link:hover {
+  text-decoration: underline;
+}
+
+.row-red    .grade-cell { color: #A32D2D; }
+.row-yellow .grade-cell { color: #854F0B; }
+.row-green  .grade-cell { color: #3B6D11; }
 .detail-section {
   display: none;
   background: #fff;
@@ -358,9 +403,7 @@ h1 {
   display: inline-block;
 }
 
-.topic-block {
-  margin-bottom: 1.5rem;
-}
+.topic-block { margin-bottom: 1.5rem; }
 
 .topic-label {
   font-size: 13px;
@@ -373,9 +416,7 @@ h1 {
   margin-bottom: 8px;
 }
 
-.item-list {
-  list-style: none;
-}
+.item-list { list-style: none; }
 
 .item-list li {
   padding: 10px 0;
@@ -383,9 +424,7 @@ h1 {
   font-size: 13px;
 }
 
-.item-list li:last-child {
-  border-bottom: none;
-}
+.item-list li:last-child { border-bottom: none; }
 
 .item-title {
   font-weight: 500;
@@ -416,9 +455,7 @@ h1 {
   text-decoration: none;
 }
 
-.item-attachments a:hover {
-  text-decoration: underline;
-}
+.item-attachments a:hover { text-decoration: underline; }
 
 .section-heading {
   font-size: 13px;
@@ -433,49 +470,4 @@ h1 {
   font-size: 13px;
   color: #aaa;
   padding: 8px 0;
-}
-
-/* ------------------------------------------------------------
-   Student Progress Report
-   ------------------------------------------------------------ */
-
-.row-red {
-  background: #fff5f5;
-}
-
-.row-yellow {
-  background: #fffbf0;
-}
-
-.row-green {
-  background: #f6fbee;
-}
-
-.row-red td:first-child {
-  border-left: 3px solid #E24B4A;
-}
-
-.row-yellow td:first-child {
-  border-left: 3px solid #EF9F27;
-}
-
-.row-green td:first-child {
-  border-left: 3px solid #639922;
-}
-
-.grade-cell {
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.row-red .grade-cell {
-  color: #A32D2D;
-}
-
-.row-yellow .grade-cell {
-  color: #854F0B;
-}
-
-.row-green .grade-cell {
-  color: #3B6D11;
 }

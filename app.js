@@ -32,13 +32,13 @@ function setStatus(id, msg, type) {
    ------------------------------------------------------------ */
 
 function connectGoogle() {
-  const clientId = document.getElementById('client-id').value.trim();
+  const clientId = (typeof CONFIG !== 'undefined' && CONFIG.clientId) ? CONFIG.clientId : '';
   if (!clientId) {
-    setStatus('auth-status', 'Please enter your Client ID.', 'error');
+    setStatus('auth-status', 'Client ID not found. Please check your config.js or environment variable.', 'error');
     return;
   }
   if (!window.google || !window.google.accounts) {
-    setStatus('auth-status', 'Google Identity Services not ready. Make sure you are running from a local server (not file://).', 'error');
+    setStatus('auth-status', 'Google Identity Services not ready. Please refresh and try again.', 'error');
     return;
   }
 
@@ -383,6 +383,7 @@ async function monitorSelected() {
     students.forEach(s => {
       studentMap[s.userId] = {
         name:     s.profile.name.fullName,
+        userId:   s.userId,
         earned:   0,
         possible: 0,
         missing:  0
@@ -430,7 +431,7 @@ async function monitorSelected() {
     });
 
     setStatus('fetch-status', 'Done!', 'success');
-    showProgressReport(studentMap);
+    showProgressReport(studentMap, selectedId);
 
   } catch(e) {
     setStatus('fetch-status', 'Error: ' + e.message, 'error');
@@ -440,8 +441,8 @@ async function monitorSelected() {
   btn.textContent = 'Monitor student progress';
 }
 
-function showProgressReport(studentMap) {
-  const course = courses.find(c => c.id === selectedId);
+function showProgressReport(studentMap, courseId) {
+  const course = courses.find(c => c.id === courseId);
 
   // Sort by grade ascending (lowest first — needs attention first)
   const rows = Object.values(studentMap).sort((a, b) => {
@@ -472,7 +473,7 @@ function showProgressReport(studentMap) {
 
   rows.forEach(s => {
     const pct      = s.possible > 0 ? (s.earned / s.possible) * 100 : null;
-    const pctLabel = pct !== null ? pct.toFixed(1) + '%' : 'N/A';
+    const pctLabel = pct !== null ? pct.toFixed(2) + '%' : 'N/A';
     const rowClass = pct === null ? '' : pct <= 60 ? 'row-red' : pct <= 75 ? 'row-yellow' : 'row-green';
     html += `
       <tr class="${rowClass}">
@@ -820,16 +821,3 @@ function attachmentsToMd(materials) {
     return null;
   }).filter(Boolean);
 }
-
-
-/* ------------------------------------------------------------
-   Auto-fill Client ID from config.js if available
-   ------------------------------------------------------------ */
-setTimeout(() => {
-  try {
-    const input = document.getElementById('client-id');
-    if (input && typeof CONFIG !== 'undefined' && CONFIG.clientId) {
-      input.value = CONFIG.clientId;
-    }
-  } catch(e) {}
-}, 100);
