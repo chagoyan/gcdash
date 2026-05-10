@@ -410,11 +410,16 @@ async function monitorSelected() {
           st.possible += maxPoints;
           st.earned   += sub.assignedGrade;
         } else if (isPastDue) {
-          st.missing += 1;
+          // Only count as missing if past due AND not submitted
+          // Submission states: NEW, CREATED, TURNED_IN, RETURNED, RECLAIMED_BY_STUDENT
+          const isSubmitted = sub.state === 'TURNED_IN' || sub.state === 'RETURNED';
+          if (!isSubmitted) {
+            st.missing += 1;
+          }
         }
       });
 
-      // Students with no submission record at all — count as missing if past due
+      // Students with NO submission record at all — count as missing if past due
       if (isPastDue) {
         Object.keys(studentMap).forEach(userId => {
           if (!submittedStudents.has(userId)) {
@@ -425,9 +430,6 @@ async function monitorSelected() {
     });
 
     setStatus('fetch-status', 'Done!', 'success');
-    // Temporary debug — remove after finding missing students
-    console.log('Roster students:', Object.values(studentMap).map(s => s.name));
-    console.log('Student count:', Object.keys(studentMap).length);
     showProgressReport(studentMap);
 
   } catch(e) {
