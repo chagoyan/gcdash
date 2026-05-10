@@ -171,6 +171,92 @@ async function fetchSelected() {
 
 
 /* ------------------------------------------------------------
+   Course Card Colors — localStorage persistence
+   ------------------------------------------------------------ */
+
+const COURSE_COLORS = [
+  { label: 'None',     value: null,      cls: 'none'    },
+  { label: 'Blue',     value: '#4285F4', cls: ''        },
+  { label: 'Purple',   value: '#9C27B0', cls: ''        },
+  { label: 'Green',    value: '#0F9D58', cls: ''        },
+  { label: 'Orange',   value: '#FF6D00', cls: ''        },
+  { label: 'Red',      value: '#DB4437', cls: ''        },
+  { label: 'Yellow',   value: '#F4B400', cls: ''        },
+  { label: 'Teal',     value: '#00BCD4', cls: ''        },
+  { label: 'Graphite', value: '#607D8B', cls: ''        },
+];
+
+function getCourseColor(courseId) {
+  return localStorage.getItem('course-color-' + courseId) || null;
+}
+
+function setCourseColor(courseId, color) {
+  if (color) {
+    localStorage.setItem('course-color-' + courseId, color);
+  } else {
+    localStorage.removeItem('course-color-' + courseId);
+  }
+}
+
+function applyCardColor(div, color) {
+  if (color) {
+    div.style.background = color;
+    div.style.borderColor = color;
+    div.style.color = '#fff';
+  } else {
+    div.style.background = '';
+    div.style.borderColor = '';
+    div.style.color = '';
+  }
+}
+
+let openPalette = null;
+
+function togglePalette(e, courseId, div) {
+  e.stopPropagation();
+
+  // Close any open palette
+  if (openPalette) {
+    openPalette.remove();
+    openPalette = null;
+    return;
+  }
+
+  const palette = document.createElement('div');
+  palette.className = 'color-palette';
+
+  COURSE_COLORS.forEach(c => {
+    const swatch = document.createElement('div');
+    swatch.className = 'color-swatch' + (c.value === null ? ' none' : '');
+    if (c.value) swatch.style.background = c.value;
+    if (getCourseColor(courseId) === c.value) swatch.classList.add('selected');
+    swatch.title = c.label;
+    swatch.onclick = (e) => {
+      e.stopPropagation();
+      setCourseColor(courseId, c.value);
+      applyCardColor(div, c.value);
+      // Update btn color
+      div.querySelector('.color-picker-btn').style.background = c.value || '#fff';
+      palette.remove();
+      openPalette = null;
+    };
+    palette.appendChild(swatch);
+  });
+
+  div.appendChild(palette);
+  openPalette = palette;
+
+  // Close palette when clicking outside
+  setTimeout(() => {
+    document.addEventListener('click', () => {
+      palette.remove();
+      openPalette = null;
+    }, { once: true });
+  }, 0);
+}
+
+
+/* ------------------------------------------------------------
    Courses UI — Tabs & Cards
    ------------------------------------------------------------ */
 
@@ -235,9 +321,23 @@ function renderCourses() {
       div.className   = 'course-card' + (c.id === selectedId ? ' selected' : '');
       div.dataset.id  = c.id;
       div.onclick     = () => selectCourse(c.id);
-      div.innerHTML   = `
+
+      // Apply saved color
+      const savedColor = getCourseColor(c.id);
+      applyCardColor(div, savedColor);
+
+      div.innerHTML = `
         <h3>${esc(c.name)}</h3>
         <div class="meta">${esc(c.section || '')}${c.room ? ' · ' + esc(c.room) : ''}</div>`;
+
+      // Color picker button
+      const btn = document.createElement('div');
+      btn.className = 'color-picker-btn';
+      btn.style.background = savedColor || '#fff';
+      btn.title = 'Pick a color';
+      btn.onclick = (e) => togglePalette(e, c.id, div);
+      div.appendChild(btn);
+
       grid.appendChild(div);
     });
 

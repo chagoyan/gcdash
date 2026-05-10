@@ -274,14 +274,74 @@ h1 {
 
 .course-card .meta {
   font-size: 12px;
-  color: #888;
+  color: inherit;
+  opacity: 0.85;
   margin-bottom: 8px;
 }
 
-/* Course state badge colors */
-.state-ACTIVE      { background: #eaf3de; color: #3B6D11; }
-.state-ARCHIVED    { background: #f1efe8; color: #5f5e5a; }
-.state-PROVISIONED { background: #faeeda; color: #854f0b; }
+/* ------------------------------------------------------------
+   Course Card Color Picker
+   ------------------------------------------------------------ */
+.color-picker-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.color-picker-btn:hover { transform: scale(1.2); }
+
+.color-palette {
+  position: absolute;
+  top: 30px;
+  right: 8px;
+  background: #fff;
+  border: 0.5px solid #ddd;
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 130px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.color-swatch:hover { transform: scale(1.2); }
+.color-swatch.selected { border-color: #333; }
+.color-swatch.none {
+  background: #fff;
+  border: 2px solid #ddd;
+  position: relative;
+}
+.color-swatch.none::after {
+  content: '✕';
+  font-size: 10px;
+  color: #aaa;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.course-card {
+  position: relative;
+}
 
 .course-card .state-badge {
   font-size: 11px;
