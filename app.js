@@ -171,19 +171,109 @@ async function fetchSelected() {
 
 
 /* ------------------------------------------------------------
+   Drag and Drop — Course Card Reordering
+   ------------------------------------------------------------ */
+
+function getStorageKey(tabKey) {
+  return 'course-order-' + tabKey;
+}
+
+function getSavedOrder(tabKey) {
+  const saved = localStorage.getItem(getStorageKey(tabKey));
+  return saved ? JSON.parse(saved) : null;
+}
+
+function saveOrder(tabKey, ids) {
+  localStorage.setItem(getStorageKey(tabKey), JSON.stringify(ids));
+}
+
+function applyOrder(courses, tabKey) {
+  const saved = getSavedOrder(tabKey);
+  if (!saved) return courses;
+  return [...courses].sort((a, b) => {
+    const ai = saved.indexOf(a.id);
+    const bi = saved.indexOf(b.id);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
+
+function enableDragAndDrop(grid, tabKey) {
+  let dragSrc = null;
+
+  grid.querySelectorAll('.course-card').forEach(card => {
+    card.draggable = true;
+
+    card.addEventListener('dragstart', (e) => {
+      dragSrc = card;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      grid.querySelectorAll('.course-card').forEach(c => c.classList.remove('drag-over'));
+      // Save new order
+      const ids = [...grid.querySelectorAll('.course-card')].map(c => c.dataset.id);
+      saveOrder(tabKey, ids);
+    });
+
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      grid.querySelectorAll('.course-card').forEach(c => c.classList.remove('drag-over'));
+      if (card !== dragSrc) card.classList.add('drag-over');
+    });
+
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (dragSrc && dragSrc !== card) {
+        const cards = [...grid.querySelectorAll('.course-card')];
+        const srcIdx = cards.indexOf(dragSrc);
+        const tgtIdx = cards.indexOf(card);
+        if (srcIdx < tgtIdx) {
+          grid.insertBefore(dragSrc, card.nextSibling);
+        } else {
+          grid.insertBefore(dragSrc, card);
+        }
+      }
+      card.classList.remove('drag-over');
+    });
+  });
+}
+
+
+/* ------------------------------------------------------------
    Course Card Colors — localStorage persistence
    ------------------------------------------------------------ */
 
 const COURSE_COLORS = [
-  { label: 'None',     value: null,      cls: 'none'    },
-  { label: 'Blue',     value: '#4285F4', cls: ''        },
-  { label: 'Purple',   value: '#9C27B0', cls: ''        },
-  { label: 'Green',    value: '#0F9D58', cls: ''        },
-  { label: 'Orange',   value: '#FF6D00', cls: ''        },
-  { label: 'Red',      value: '#DB4437', cls: ''        },
-  { label: 'Yellow',   value: '#F4B400', cls: ''        },
-  { label: 'Teal',     value: '#00BCD4', cls: ''        },
-  { label: 'Graphite', value: '#607D8B', cls: ''        },
+  { label: 'None',            value: null,      },
+  // Blue
+  { label: 'Blue (dark)',     value: '#1A56DB'  },
+  { label: 'Blue (light)',    value: '#93C5FD'  },
+  // Purple
+  { label: 'Purple (dark)',   value: '#7E22CE'  },
+  { label: 'Purple (light)',  value: '#D8B4FE'  },
+  // Green
+  { label: 'Green (dark)',    value: '#166534'  },
+  { label: 'Green (light)',   value: '#86EFAC'  },
+  // Orange
+  { label: 'Orange (dark)',   value: '#C2410C'  },
+  { label: 'Orange (light)',  value: '#FDB37A'  },
+  // Red
+  { label: 'Red (dark)',      value: '#B91C1C'  },
+  { label: 'Red (light)',     value: '#FCA5A5'  },
+  // Yellow
+  { label: 'Yellow (dark)',   value: '#B45309'  },
+  { label: 'Yellow (light)',  value: '#FDE68A'  },
+  // Teal
+  { label: 'Teal (dark)',     value: '#0E7490'  },
+  { label: 'Teal (light)',    value: '#67E8F9'  },
+  // Graphite
+  { label: 'Graphite (dark)', value: '#374151'  },
+  { label: 'Graphite (light)',value: '#9CA3AF'  },
 ];
 
 function getCourseColor(courseId) {
@@ -198,15 +288,26 @@ function setCourseColor(courseId, color) {
   }
 }
 
+// Determine if a color is light or dark and return appropriate text color
+function getTextColor(hex) {
+  if (!hex) return '';
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Perceived brightness formula
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness > 160 ? '#333333' : '#ffffff';
+}
+
 function applyCardColor(div, color) {
   if (color) {
-    div.style.background = color;
-    div.style.borderColor = color;
-    div.style.color = '#fff';
+    div.style.background   = color;
+    div.style.borderColor  = color;
+    div.style.color        = getTextColor(color);
   } else {
-    div.style.background = '';
+    div.style.background  = '';
     div.style.borderColor = '';
-    div.style.color = '';
+    div.style.color       = '';
   }
 }
 
@@ -235,8 +336,9 @@ function togglePalette(e, courseId, div) {
       e.stopPropagation();
       setCourseColor(courseId, c.value);
       applyCardColor(div, c.value);
-      // Update btn color
-      div.querySelector('.color-picker-btn').style.background = c.value || '#fff';
+      const btn = div.querySelector('.color-picker-btn');
+      btn.style.background  = c.value || '#fff';
+      btn.style.borderColor = c.value ? getTextColor(c.value) : '#ddd';
       palette.remove();
       openPalette = null;
     };
@@ -316,7 +418,8 @@ function renderCourses() {
     const grid = document.createElement('div');
     grid.className  = 'course-grid';
 
-    groups[t.key].forEach(c => {
+    const orderedCourses = applyOrder(groups[t.key], t.key);
+    orderedCourses.forEach(c => {
       const div       = document.createElement('div');
       div.className   = 'course-card' + (c.id === selectedId ? ' selected' : '');
       div.dataset.id  = c.id;
@@ -333,7 +436,8 @@ function renderCourses() {
       // Color picker button
       const btn = document.createElement('div');
       btn.className = 'color-picker-btn';
-      btn.style.background = savedColor || '#fff';
+      const textColor = getTextColor(savedColor);
+    btn.style.borderColor = textColor;
       btn.title = 'Pick a color';
       btn.onclick = (e) => togglePalette(e, c.id, div);
       div.appendChild(btn);
@@ -342,6 +446,7 @@ function renderCourses() {
     });
 
     panel.appendChild(grid);
+    enableDragAndDrop(grid, t.key);
     panelsEl.appendChild(panel);
   });
 }
