@@ -356,12 +356,17 @@ async function monitorSelected() {
   setStatus('fetch-status', 'Fetching roster…', 'info');
 
   try {
-    const [rosterData, cwData] = await Promise.all([
-      apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/students?pageSize=100`),
-      apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork?pageSize=100`)
-    ]);
+    // Fetch ALL students with pagination
+    let students = [], studentPageToken = '';
+    do {
+      const url = `https://classroom.googleapis.com/v1/courses/${selectedId}/students?pageSize=100` +
+                  (studentPageToken ? '&pageToken=' + studentPageToken : '');
+      const data = await apiGet(url);
+      students = students.concat(data.students || []);
+      studentPageToken = data.nextPageToken || '';
+    } while (studentPageToken);
 
-    const students   = rosterData.students || [];
+    const cwData = await apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork?pageSize=100`);
     const coursework = (cwData.courseWork || []).filter(cw => cw.maxPoints > 0);
 
     setStatus('fetch-status', 'Fetching submissions…', 'info');
@@ -395,21 +400,34 @@ async function monitorSelected() {
         isPastDue = due <= today;
       }
 
+      // Track which students have a submission record for this assignment
+      const submittedStudents = new Set(submissions.map(s => s.userId));
+
       submissions.forEach(sub => {
         const st = studentMap[sub.userId];
         if (!st) return;
         if (sub.assignedGrade != null) {
-          // Only count toward possible if the assignment has been graded
           st.possible += maxPoints;
           st.earned   += sub.assignedGrade;
         } else if (isPastDue) {
-          // Only count as missing if past due and not submitted
           st.missing += 1;
         }
       });
+
+      // Students with no submission record at all — count as missing if past due
+      if (isPastDue) {
+        Object.keys(studentMap).forEach(userId => {
+          if (!submittedStudents.has(userId)) {
+            studentMap[userId].missing += 1;
+          }
+        });
+      }
     });
 
     setStatus('fetch-status', 'Done!', 'success');
+    // Temporary debug — remove after finding missing students
+    console.log('Roster students:', Object.values(studentMap).map(s => s.name));
+    console.log('Student count:', Object.keys(studentMap).length);
     showProgressReport(studentMap);
 
   } catch(e) {
