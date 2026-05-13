@@ -53,7 +53,8 @@ function connectGoogle() {
         'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
         'https://www.googleapis.com/auth/classroom.topics.readonly',
         'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly',
-        'https://www.googleapis.com/auth/classroom.rosters.readonly'
+        'https://www.googleapis.com/auth/classroom.rosters.readonly',
+        'https://www.googleapis.com/auth/drive.file'
       ].join(' '),
       callback: handleToken,
       error_callback: (err) => {
@@ -119,6 +120,7 @@ async function fetchCourses() {
 
     courses = all;
     renderCourses();
+    initSettings(); // Sync settings from Drive in background
   } catch(e) {
     setStatus('auth-status', 'Failed to fetch courses: ' + e.message, 'error');
     document.getElementById('connect-btn').disabled = false;
@@ -166,8 +168,173 @@ async function fetchSelected() {
 
 
 /* ------------------------------------------------------------
-   Drag and Drop — Course Card Reordering
+   Drive Sync — Settings persistence across devices
    ------------------------------------------------------------ */
+
+const DRIVE_FOLDER_NAME = '.gcdash-config';
+const DRIVE_FILE_NAME   = 'settings.json';
+
+let driveFolderId = null;
+let driveFileId   = null;
+let syncTimeout   = null;
+
+// Load settings from localStorage immediately, then sync from Drive in background
+async function initSettings() {
+  applySettingsFromLocal();
+  try {
+    await syncFromDrive();
+  } catch(e) {
+    console.log('Drive sync unavailable, using localStorage:', e.message);
+  }
+}
+
+// Apply settings from localStorage to the UI
+function applySettingsFromLocal() {
+  // Colors and order are applied automatically when cards render
+  // This is a hook for future settings
+}
+
+// Read settings from Drive and merge into localStorage
+async function syncFromDrive() {
+  if (!accessToken) return;
+
+  // Find or create the .gcdash-config folder
+  driveFolderId = await findOrCreateFolder();
+
+  // Find or create the settings.json file
+  const file = await findSettingsFile();
+
+  if (file) {
+    driveFileId = file.id;
+    // Download and apply settings
+    const settings = await downloadSettings(file.id);
+    if (settings) mergeSettings(settings);
+  } else {
+    // No file yet — create it with current localStorage settings
+    await saveSettingsToDrive();
+  }
+}
+
+// Find or create the .gcdash-config folder in Drive root
+async function findOrCreateFolder() {
+  const query = encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  });
+  const data = await r.json();
+
+  if (data.files && data.files.length > 0) {
+    return data.files[0].id;
+  }
+
+  // Create the folder
+  const create = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+  });
+  const folder = await create.json();
+  return folder.id;
+}
+
+// Find settings.json inside the folder
+async function findSettingsFile() {
+  if (!driveFolderId) return null;
+  const query = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and '${driveFolderId}' in parents and trashed=false`);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  });
+  const data = await r.json();
+  return data.files && data.files.length > 0 ? data.files[0] : null;
+}
+
+// Download and parse settings from Drive
+async function downloadSettings(fileId) {
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  });
+  try {
+    return await r.json();
+  } catch(e) {
+    return null;
+  }
+}
+
+// Merge Drive settings into localStorage
+function mergeSettings(settings) {
+  if (settings.courseColors) {
+    Object.entries(settings.courseColors).forEach(([id, color]) => {
+      localStorage.setItem('course-color-' + id, color);
+    });
+  }
+  if (settings.courseOrder) {
+    Object.entries(settings.courseOrder).forEach(([tab, ids]) => {
+      localStorage.setItem('course-order-' + tab, JSON.stringify(ids));
+    });
+  }
+  // Re-render to apply synced settings
+  if (courses.length) renderCourses();
+}
+
+// Collect current settings from localStorage
+function collectSettings() {
+  const courseColors = {}, courseOrder = {};
+
+  // Collect colors
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith('course-color-')) {
+      courseColors[key.replace('course-color-', '')] = localStorage.getItem(key);
+    }
+    if (key.startsWith('course-order-')) {
+      courseOrder[key.replace('course-order-', '')] = JSON.parse(localStorage.getItem(key));
+    }
+  }
+
+  return { courseColors, courseOrder, updatedAt: new Date().toISOString() };
+}
+
+// Save settings to Drive (debounced — waits 1.5s after last change)
+function debouncedSave() {
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(saveSettingsToDrive, 1500);
+}
+
+async function saveSettingsToDrive() {
+  if (!accessToken || !driveFolderId) return;
+
+  const settings = collectSettings();
+  const body     = JSON.stringify(settings, null, 2);
+
+  try {
+    if (driveFileId) {
+      // Update existing file
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body
+      });
+    } else {
+      // Create new file
+      const meta = { name: DRIVE_FILE_NAME, parents: [driveFolderId] };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+      form.append('file',     new Blob([body],                  { type: 'application/json' }));
+      const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken },
+        body: form
+      });
+      const file = await r.json();
+      driveFileId = file.id;
+    }
+    console.log('Settings synced to Drive ✓');
+  } catch(e) {
+    console.log('Drive sync failed:', e.message);
+  }
+}
+
+
 
 function getStorageKey(tabKey) { return 'course-order-' + tabKey; }
 
@@ -200,6 +367,7 @@ function enableDragAndDrop(grid, tabKey) {
       card.classList.remove('dragging');
       grid.querySelectorAll('.course-card').forEach(c => c.classList.remove('drag-over'));
       saveOrder(tabKey, [...grid.querySelectorAll('.course-card')].map(c => c.dataset.id));
+      debouncedSave(); // Sync to Drive
     });
     card.addEventListener('dragover', (e) => {
       e.preventDefault(); e.dataTransfer.dropEffect = 'move';
@@ -283,6 +451,7 @@ function togglePalette(e, courseId, div) {
       btn.style.background  = c.value || '#2E2E2E';
       btn.style.borderColor = c.value ? getTextColor(c.value) : '#ddd';
       palette.remove(); openPalette = null;
+      debouncedSave(); // Sync to Drive
     };
     palette.appendChild(sw);
   });
