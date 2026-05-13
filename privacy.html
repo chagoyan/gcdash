@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — GCDash</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Georgia, serif;
+            background: #111;
+            color: #eee;
+            min-height: 100vh;
+            padding: 3rem 1.5rem;
+        }
+
+        .container {
+            max-width: 780px;
+            margin: 0 auto;
+        }
+
+        .back {
+            display: inline-block;
+            font-family: sans-serif;
+            font-size: 13px;
+            color: #F26522;
+            text-decoration: none;
+            margin-bottom: 2rem;
+        }
+
+        .back:hover {
+            text-decoration: underline;
+        }
+
+        .app-name {
+            font-family: sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #F26522;
+            margin-bottom: 0.5rem;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+
+        .updated {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 3rem;
+            font-family: sans-serif;
+        }
+
+        h2 {
+            font-family: sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: #F26522;
+            margin: 2.5rem 0 1rem;
+            padding-bottom: 6px;
+            border-bottom: 0.5px solid #2E2E2E;
+        }
+
+        p {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #ccc;
+            margin-bottom: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            font-family: sans-serif;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            color: #888;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 8px 12px;
+            border-bottom: 0.5px solid #2E2E2E;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 0.5px solid #1E1E1E;
+            color: #ccc;
+            line-height: 1.6;
+        }
+
+        td:first-child {
+            color: #fff;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        ul {
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        ul li {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #ccc;
+            margin-bottom: 4px;
+        }
+
+        a {
+            color: #F26522;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            margin-top: 4rem;
+            padding-top: 1rem;
+            border-top: 0.5px solid #2E2E2E;
+            font-family: sans-serif;
+            font-size: 12px;
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <a class="back" href="/">← Back to GCDash</a>
+
+        <div class="app-name">GCDash</div>
+        <h1>Privacy Policy</h1>
+        <p class="updated">Last updated: May 2026</p>
+
+        <h2>Overview</h2>
+        <p>GCDash is a personal teacher dashboard that connects to Google Classroom to help teachers manage course
+            outlines, monitor student progress, and export curriculum data. This privacy policy explains how the app
+            handles your data.</p>
+
+        <h2>Data We Access</h2>
+        <p>GCDash requests access to the following Google data through OAuth 2.0:</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Google Classroom courses</td>
+                    <td>Display your course list</td>
+                </tr>
+                <tr>
+                    <td>Assignments and materials</td>
+                    <td>Generate course outlines</td>
+                </tr>
+                <tr>
+                    <td>Topic names</td>
+                    <td>Organize assignments by week or unit</td>
+                </tr>
+                <tr>
+                    <td>Student rosters</td>
+                    <td>Display student names in progress monitor</td>
+                </tr>
+                <tr>
+                    <td>Student grades and submissions</td>
+                    <td>Calculate grade percentages and flag at-risk students</td>
+                </tr>
+                <tr>
+                    <td>Google Drive files (app-specific)</td>
+                    <td>Store app settings across devices</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>How We Use Your Data</h2>
+        <ul>
+            <li><strong>Course data</strong> is used solely to display course outlines, generate printable reports, and
+                export markdown files.</li>
+            <li><strong>Student data</strong> (names, grades, submissions) is used solely to display the student
+                progress monitor within the app.</li>
+            <li><strong>Settings data</strong> is stored in a file named <code>settings.json</code> inside a folder
+                called <code>.gcdash-config</code> in your Google Drive. This file contains only app preferences (course
+                colors, drag order) — no student data.</li>
+        </ul>
+
+        <h2>Data Storage</h2>
+        <ul>
+            <li><strong>All Google Classroom data is processed in your browser only.</strong> It is never sent to any
+                external server.</li>
+            <li><strong>No student data is stored</strong> on any server, database, or third-party service.</li>
+            <li><strong>App preferences</strong> (course colors, card order) are stored in your browser's localStorage
+                and optionally in a settings file in your Google Drive for cross-device sync.</li>
+            <li><strong>No cookies</strong> are used by this application.</li>
+        </ul>
+
+        <h2>Data Sharing</h2>
+        <p>We do not share, sell, rent, or trade any data with third parties. Your Google Classroom data and student
+            information never leave your browser.</p>
+
+        <h2>Third-Party Services</h2>
+        <p>GCDash uses the following Google APIs:</p>
+        <ul>
+            <li><a href="https://developers.google.com/classroom" target="_blank">Google Classroom API</a></li>
+            <li><a href="https://developers.google.com/drive" target="_blank">Google Drive API</a></li>
+            <li><a href="https://developers.google.com/identity" target="_blank">Google Identity Services</a></li>
+        </ul>
+        <p>Your use of GCDash is also subject to <a href="https://policies.google.com/privacy" target="_blank">Google's
+                Privacy Policy</a>.</p>
+
+        <h2>Data Retention</h2>
+        <p>GCDash does not retain any data. When you disconnect or close the browser tab, all fetched data is discarded.
+            Only your app preferences (colors, order) are persisted in localStorage and optionally in Google Drive.</p>
+
+        <h2>Student Data — FERPA</h2>
+        <p>GCDash accesses student names and grade data solely for display within the app to the authenticated teacher.
+            This data is:</p>
+        <ul>
+            <li>Never stored on any server</li>
+            <li>Never shared with any third party</li>
+            <li>Only visible to the authenticated teacher</li>
+            <li>Discarded when the session ends</li>
+        </ul>
+        <p>Teachers are responsible for ensuring their use of GCDash complies with their school or district's data
+            privacy policies and applicable laws including FERPA.</p>
+
+        <h2>Security</h2>
+        <ul>
+            <li>GCDash uses OAuth 2.0 with short-lived access tokens (expiring in approximately 1 hour)</li>
+            <li>All API requests are made over HTTPS</li>
+            <li>The app requests only the minimum scopes necessary</li>
+            <li>All scopes except <code>drive.file</code> are read-only</li>
+        </ul>
+
+        <h2>Your Rights</h2>
+        <p>You can revoke GCDash's access to your Google account at any time by visiting <a
+                href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a> and
+            removing the app.</p>
+
+        <h2>Contact</h2>
+        <p>For questions about this privacy policy, contact:</p>
+        <p>
+            <strong>Manuel Chagoyan</strong><br>
+            Technology Teacher, Coalinga High School<br>
+            <a href="mailto:mchagoyan@chusd.org">mchagoyan@chusd.org</a>
+        </p>
+
+        <h2>Changes to This Policy</h2>
+        <p>This privacy policy may be updated from time to time. The date at the top of this page reflects the most
+            recent revision.</p>
+
+        <div class="footer">
+            &copy; 2026 GCDash · Coalinga High School · <a href="/">Back to app</a>
+        </div>
+
+    </div>
+</body>
+
+</html>
