@@ -62,7 +62,7 @@ function connectGoogle() {
         document.getElementById('connect-btn').disabled = false;
       }
     });
-    tokenClient.requestAccessToken({ prompt: 'consent', include_granted_scopes: true });
+    tokenClient.requestAccessToken({ prompt: 'select_account consent', include_granted_scopes: false });
   } catch(e) {
     setStatus('auth-status', 'Error: ' + e.message, 'error');
     document.getElementById('connect-btn').disabled = false;
