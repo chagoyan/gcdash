@@ -46,6 +46,23 @@ body {
   padding: 2rem 1.5rem;
 }
 
+/* ------------------------------------------------------------
+   Header & Logo
+   ------------------------------------------------------------ */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 h1 {
   font-size: 22px;
   font-weight: 700;
@@ -56,7 +73,7 @@ h1 {
 .subtitle {
   font-size: 14px;
   color: var(--gray-mid);
-  margin-bottom: 2rem;
+  margin-bottom: 0;
 }
 
 
@@ -484,7 +501,7 @@ h1 {
 
 
 /* ------------------------------------------------------------
-   Student Progress Report
+   Print View is handled inline in buildPrintHtml in app.js
    ------------------------------------------------------------ */
 .progress-header {
   display: flex;
@@ -546,20 +563,23 @@ h1 {
 
 .progress-table tbody tr:last-child td { border-bottom: none; }
 
-/* Color coding — adjusted for dark background */
-.row-red    { background: #2a1010; }
-.row-yellow { background: #2a2010; }
-.row-green  { background: #0f2010; }
+/* Color coding */
+.row-red    { background: #fff5f5; }
+.row-yellow { background: #fffbf0; }
+.row-green  { background: #f6fbee; }
 
 .row-red    td:first-child { border-left: 3px solid #E24B4A; }
 .row-yellow td:first-child { border-left: 3px solid #EF9F27; }
 .row-green  td:first-child { border-left: 3px solid #639922; }
 
-.grade-cell { font-weight: 500; font-size: 14px; }
+.grade-cell {
+  font-weight: 500;
+  font-size: 14px;
+}
 
-.row-red    .grade-cell { color: #ff6b6b; }
-.row-yellow .grade-cell { color: #ffd166; }
-.row-green  .grade-cell { color: #86EFAC; }
+.row-red    .grade-cell { color: #A32D2D; }
+.row-yellow .grade-cell { color: #854F0B; }
+.row-green  .grade-cell { color: #3B6D11; }
 
 .student-link {
   color: var(--orange);
