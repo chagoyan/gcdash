@@ -60,6 +60,7 @@ function connectGoogle() {
 				'https://www.googleapis.com/auth/classroom.topics.readonly',
 				'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly',
 				'https://www.googleapis.com/auth/classroom.rosters.readonly',
+				'https://www.googleapis.com/auth/classroom.profile.emails',
 				'https://www.googleapis.com/auth/drive.file',
 			].join(' '),
 			callback: handleToken,
@@ -136,7 +137,7 @@ async function fetchCourses() {
 
 		courses = all;
 		renderCourses();
-		initSettings(); // Sync settings from Drive in background
+		initSettings();
 	} catch (e) {
 		setStatus('auth-status', 'Failed to fetch courses: ' + e.message, 'error');
 		document.getElementById('connect-btn').disabled = false;
@@ -204,15 +205,12 @@ let driveFileId = null;
 let syncTimeout = null;
 
 async function initSettings() {
-	applySettingsFromLocal();
 	try {
 		await syncFromDrive();
 	} catch (e) {
 		console.log('Drive sync unavailable, using localStorage:', e.message);
 	}
 }
-
-function applySettingsFromLocal() {}
 
 async function syncFromDrive() {
 	if (!accessToken) return;
@@ -727,6 +725,9 @@ async function monitorSelected() {
 			studentPageToken = data.nextPageToken || '';
 		} while (studentPageToken);
 
+		console.log('Students fetched:', students.length);
+		console.log('First student:', students[0]);
+
 		const cwData = await apiGet(
 			`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork?pageSize=100`,
 		);
@@ -755,18 +756,21 @@ async function monitorSelected() {
 			),
 		);
 
-		// Build student map with turnedIn counter
+		// Build student map
 		const studentMap = {};
 		students.forEach((s) => {
 			studentMap[s.userId] = {
 				name: s.profile.name.fullName,
 				userId: s.userId,
+				email: s.profile.emailAddress || '',
 				earned: 0,
 				possible: 0,
 				missing: 0,
-				turnedIn: 0, // Submitted but not yet graded
+				turnedIn: 0,
 			};
 		});
+
+		window._debugStudentMap = studentMap;
 
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
@@ -787,19 +791,15 @@ async function monitorSelected() {
 				const st = studentMap[sub.userId];
 				if (!st) return;
 				if (sub.assignedGrade != null) {
-					// Graded — count toward points
 					st.possible += maxPoints;
 					st.earned += sub.assignedGrade;
 				} else if (sub.state === 'TURNED_IN' || sub.state === 'RETURNED') {
-					// Submitted but not graded yet
 					st.turnedIn += 1;
 				} else if (isPastDue) {
-					// Past due and not submitted — missing
 					st.missing += 1;
 				}
 			});
 
-			// Students with no submission record at all — count as missing if past due
 			if (isPastDue) {
 				Object.keys(studentMap).forEach((uid) => {
 					if (!submittedStudents.has(uid)) studentMap[uid].missing += 1;
@@ -842,6 +842,7 @@ function showProgressReport(studentMap, courseId) {
         <th>Earned / Possible</th>
         <th>Turned In</th>
         <th>Missing</th>
+        <th></th>
       </tr></thead>
       <tbody>`;
 
@@ -856,6 +857,29 @@ function showProgressReport(studentMap, courseId) {
 					: pct <= 75
 						? 'row-yellow'
 						: 'row-green';
+
+		const subject = encodeURIComponent(`Grade Update — ${course.name}`);
+		const body = encodeURIComponent(
+			`Hi ${s.name},
+
+Here is a summary of your current grade in ${course.name}:
+
+Current Grade: ${pctLabel}
+Earned / Possible Points: ${s.earned} / ${s.possible}
+Assignments Turned In (awaiting grade): ${s.turnedIn}
+Missing Assignments: ${s.missing}
+
+Please make sure to complete any missing assignments and reach out if you have any questions.
+
+${course.alternateLink ? 'Google Classroom: ' + course.alternateLink : ''}
+
+Thank you,
+Mr. Chagoyan`,
+		);
+		const mailtoLink = s.email
+			? `mailto:${s.email}?subject=${subject}&body=${body}`
+			: '';
+
 		html += `
       <tr class="${rowClass}">
         <td>${esc(s.name)}</td>
@@ -863,6 +887,7 @@ function showProgressReport(studentMap, courseId) {
         <td>${s.earned} / ${s.possible}</td>
         <td>${s.turnedIn > 0 ? s.turnedIn + ' turned in' : '—'}</td>
         <td>${s.missing > 0 ? s.missing + ' missing' : '—'}</td>
+        <td>${mailtoLink ? `<a href="${mailtoLink}" class="email-btn">✉️</a>` : ''}</td>
       </tr>`;
 	});
 
@@ -1021,8 +1046,6 @@ async function downloadAllMd() {
 
 function courseToMd(c, data) {
 	const lines = [];
-
-	// Frontmatter — used by Astro content collections
 	lines.push('---');
 	lines.push(`title: "${(c.name || 'Untitled Course').replace(/"/g, '\\"')}"`);
 	if (c.section) lines.push(`section: "${c.section}"`);

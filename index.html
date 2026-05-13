@@ -21,6 +21,7 @@
 
   <div class="container">
 
+    <!-- Header -->
     <div class="header">
       <img src="logo.png" alt="CHS Technology Pathway" class="logo">
       <div>
@@ -35,7 +36,7 @@
   --------------------------------------------------------- -->
     <div class="setup-box" id="setup-section">
       <h2>Google Classroom Dashboard</h2>
-      <p style="font-size:13px;color:#555;margin-bottom:1.25rem;">Connect your Google account to view course outlines,
+      <p style="font-size:13px;color:#888;margin-bottom:1.25rem;">Connect your Google account to view course outlines,
         assignments, materials, and monitor student progress.</p>
       <button class="btn btn-primary" id="connect-btn" onclick="connectGoogle()">Connect with Google</button>
       <div class="token-note">Read-only access — your data never leaves your browser.</div>
@@ -68,8 +69,6 @@
        Detail Section
        Shown after fetching a course. Displays topics,
        assignments, materials, and attachments.
-       The detail-actions div is hidden when showing
-       the student progress monitor.
   --------------------------------------------------------- -->
     <div class="detail-section" id="detail-section">
       <span class="detail-back" onclick="closeDetail()">← Back to courses</span>
