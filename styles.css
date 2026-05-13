@@ -289,8 +289,8 @@ h1 {
 }
 
 .course-card {
-  background: #2E2E2E !important;
-  border: 1px solid var(--white) !important;
+  background: #2E2E2E;
+  border: 1px solid var(--white);
   border-radius: 12px;
   padding: 1rem 1.25rem;
   cursor: grab;
@@ -299,8 +299,8 @@ h1 {
   color: var(--white);
 }
 
-.course-card:hover { border: 2px solid var(--orange) !important; }
-.course-card.selected { border: 3px solid var(--white) !important; }
+.course-card:hover { border: 2px solid var(--orange); }
+.course-card.selected { border: 3px solid var(--white); }
 
 .course-card h3 {
   font-size: 14px;
