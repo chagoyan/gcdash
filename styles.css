@@ -1,5 +1,5 @@
 /* ============================================================
-   Google Classroom Extractor — Stylesheet
+   GCDash — Stylesheet
    School colors: Orange, Black, White, Gray
    ============================================================ */
 
@@ -10,12 +10,12 @@
 :root {
   --orange:       #F26522;
   --orange-dark:  #C74E0A;
-  --orange-light: #3D1F0A;  /* Dark tint for black bg */
-  --black:        #111111;  /* Page background */
-  --gray-dark:    #CCCCCC;  /* Secondary text */
-  --gray-mid:     #888888;  /* Muted text */
-  --gray-light:   #2E2E2E;  /* Borders */
-  --gray-bg:      #1A1A1A;  /* Card/panel background */
+  --orange-light: #3D1F0A;
+  --black:        #111111;
+  --gray-dark:    #CCCCCC;
+  --gray-mid:     #888888;
+  --gray-light:   #2E2E2E;
+  --gray-bg:      #1A1A1A;
   --white:        #FFFFFF;
 }
 
@@ -36,15 +36,6 @@ body {
   min-height: 100vh;
 }
 
-
-/* ------------------------------------------------------------
-   Layout
-   ------------------------------------------------------------ */
-.container {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
-}
 
 /* ------------------------------------------------------------
    Header & Logo
@@ -74,6 +65,16 @@ h1 {
   font-size: 14px;
   color: var(--gray-mid);
   margin-bottom: 0;
+}
+
+
+/* ------------------------------------------------------------
+   Layout
+   ------------------------------------------------------------ */
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
 }
 
 
@@ -167,9 +168,7 @@ h1 {
   border: 1px solid var(--white);
 }
 
-.btn-primary:hover {
-  background: var(--orange-dark);
-}
+.btn-primary:hover { background: var(--orange-dark); }
 
 .btn-success {
   background: var(--gray-mid);
@@ -177,9 +176,7 @@ h1 {
   border: 1px solid var(--white);
 }
 
-.btn-success:hover {
-  background: var(--gray-dark);
-}
+.btn-success:hover { background: var(--gray-dark); }
 
 .btn:disabled {
   opacity: 0.4;
@@ -205,9 +202,9 @@ h1 {
   display: none;
 }
 
-.status.info    { background: var(--orange-light); color: var(--orange-dark); display: block; }
-.status.error   { background: #fcebeb; color: #a32d2d; display: block; }
-.status.success { background: #eaf3de; color: #3B6D11; display: block; }
+.status.info    { background: var(--orange-light); color: var(--orange); display: block; }
+.status.error   { background: #2a1010; color: #ff6b6b; display: block; }
+.status.success { background: #0f2010; color: #86EFAC; display: block; }
 
 
 /* ------------------------------------------------------------
@@ -266,7 +263,7 @@ h1 {
 
 .tab.active .tab-badge {
   background: var(--orange-light);
-  color: var(--orange-dark);
+  color: var(--orange);
 }
 
 .tab-panel { display: none; }
@@ -279,7 +276,7 @@ h1 {
 .badge {
   font-size: 12px;
   background: var(--orange-light);
-  color: var(--orange-dark);
+  color: var(--orange);
   padding: 3px 10px;
   border-radius: 20px;
 }
@@ -292,22 +289,24 @@ h1 {
 }
 
 .course-card {
-  background: var(--white);
-  border: 0.5px solid var(--gray-light);
+  background: #2E2E2E !important;
+  border: 1px solid var(--white) !important;
   border-radius: 12px;
   padding: 1rem 1.25rem;
   cursor: grab;
-  transition: border-color 0.15s;
+  transition: border-width 0.15s;
   position: relative;
+  color: var(--white);
 }
 
-.course-card:hover { border-color: var(--orange); }
-.course-card.selected { border: 2px solid var(--orange); }
+.course-card:hover { border: 2px solid var(--orange) !important; }
+.course-card.selected { border: 3px solid var(--white) !important; }
 
 .course-card h3 {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
+  color: var(--white);
 }
 
 .course-card .meta {
@@ -338,7 +337,7 @@ h1 {
 }
 
 .course-card.drag-over {
-  border: 2px dashed var(--orange);
+  border: 2px dashed var(--orange) !important;
 }
 
 
@@ -353,7 +352,7 @@ h1 {
   height: 16px;
   border-radius: 50%;
   border: 2px solid #ddd;
-  background: #fff;
+  background: #2E2E2E;
   cursor: pointer;
   transition: transform 0.15s;
 }
@@ -385,12 +384,14 @@ h1 {
 }
 
 .color-swatch:hover { transform: scale(1.2); }
-.color-swatch.selected { border-color: #333; }
+.color-swatch.selected { border-color: #fff; }
+
 .color-swatch.none {
-  background: var(--white);
+  background: var(--gray-bg);
   border: 2px solid var(--gray-light);
   position: relative;
 }
+
 .color-swatch.none::after {
   content: '✕';
   font-size: 10px;
@@ -434,7 +435,7 @@ h1 {
 .topic-label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--orange-dark);
+  color: var(--orange);
   background: var(--orange-light);
   display: inline-block;
   padding: 3px 10px;
@@ -501,7 +502,7 @@ h1 {
 
 
 /* ------------------------------------------------------------
-   Print View is handled inline in buildPrintHtml in app.js
+   Student Progress Report
    ------------------------------------------------------------ */
 .progress-header {
   display: flex;
@@ -559,27 +560,29 @@ h1 {
   padding: 14px 12px;
   border-bottom: 0.5px solid var(--gray-light);
   line-height: 1.6;
+  color: var(--white);
 }
 
 .progress-table tbody tr:last-child td { border-bottom: none; }
 
-/* Color coding */
-.row-red    { background: #fff5f5; }
-.row-yellow { background: #fffbf0; }
-.row-green  { background: #f6fbee; }
+/* Color coding — dark background */
+.row-red    { background: #2a1010; }
+.row-yellow { background: #2a2010; }
+.row-green  { background: #0f2010; }
+
+.row-red    td { color: var(--white) !important; }
+.row-yellow td { color: var(--white) !important; }
+.row-green  td { color: var(--white) !important; }
 
 .row-red    td:first-child { border-left: 3px solid #E24B4A; }
 .row-yellow td:first-child { border-left: 3px solid #EF9F27; }
 .row-green  td:first-child { border-left: 3px solid #639922; }
 
-.grade-cell {
-  font-weight: 500;
-  font-size: 14px;
-}
+.grade-cell { font-weight: 500; font-size: 14px; }
 
-.row-red    .grade-cell { color: #A32D2D; }
-.row-yellow .grade-cell { color: #854F0B; }
-.row-green  .grade-cell { color: #3B6D11; }
+.row-red    .grade-cell { color: #ff6b6b !important; }
+.row-yellow .grade-cell { color: #ffd166 !important; }
+.row-green  .grade-cell { color: #86EFAC !important; }
 
 .student-link {
   color: var(--orange);
