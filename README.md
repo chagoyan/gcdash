@@ -168,9 +168,18 @@ If Drive sync is unavailable, the app falls back to localStorage automatically.
 
 ---
 
-## Privacy
+## Email Setup — Student Grade Notifications
 
-See [privacy.md](privacy.md) for the full privacy policy.
+The student progress monitor includes a ✉️ button per student that opens a pre-populated Gmail compose window in a new tab with the student's grade summary, earned/possible points, turned in count, missing assignments, and a link to their classwork page.
+
+**Requirements:**
+- Teachers must have a **Gmail account** (Google Workspace or personal Gmail)
+- Students must have an email address on file in Google Classroom
+- Clicking ✉️ opens Gmail compose in a new tab — the app stays open
+
+No setup or configuration needed. Works on all devices and browsers.
+
+---
 
 ---
 
