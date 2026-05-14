@@ -734,7 +734,7 @@ View your assignments: ${classworkUrl}
 Thank you,
 Mr. Chagoyan`
     );
-    const mailtoLink = s.email ? `mailto:${s.email}?subject=${subject}&body=${body}` : '';
+    const gmailUrl = s.email ? `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(s.email)}&su=${subject}&body=${body}` : '';
 
     html += `
       <tr class="${rowClass}">
@@ -743,7 +743,7 @@ Mr. Chagoyan`
         <td>${s.earned} / ${s.possible}</td>
         <td>${s.turnedIn > 0 ? s.turnedIn + ' turned in' : '—'}</td>
         <td>${s.missing > 0 ? s.missing + ' missing' : '—'}</td>
-        <td>${mailtoLink ? `<a href="${mailtoLink}" class="email-btn">✉️</a>` : ''}</td>
+        <td>${gmailUrl ? `<a href="${gmailUrl}" class="email-btn" target="_blank" rel="noopener">✉️</a>` : ''}</td>
       </tr>`;
   });
 
