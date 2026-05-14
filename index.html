@@ -44,9 +44,22 @@
     </div>
 
     <!-- --------------------------------------------------------
-       Courses Section
-       Shown after login. Tabs for Active / Archived / Declined.
+       Quick Links Panel
+       Shown after login. Customizable daily resource links.
   --------------------------------------------------------- -->
+    <div class="quick-links-section" id="quick-links-section" style="display:none;">
+      <div class="quick-links-header">
+        <h2>Quick Links</h2>
+        <button class="btn" onclick="toggleAddLink()">+ Add Link</button>
+      </div>
+      <div class="add-link-form" id="add-link-form" style="display:none;">
+        <input type="text" id="link-name" placeholder="Name (e.g. Aeries)" />
+        <input type="text" id="link-url" placeholder="URL (e.g. https://...)" />
+        <button class="btn btn-primary" onclick="saveNewLink()">Save</button>
+        <button class="btn" onclick="toggleAddLink()">Cancel</button>
+      </div>
+      <div class="quick-links-grid" id="quick-links-grid"></div>
+    </div>
     <div class="courses-section" id="courses-section">
       <div class="courses-header">
         <h2>Your courses</h2>

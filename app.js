@@ -87,9 +87,10 @@ function resetApp() {
   courses     = [];
   selectedId  = null;
   courseData  = {};
-  document.getElementById('courses-section').style.display = 'none';
-  document.getElementById('detail-section').style.display  = 'none';
-  document.getElementById('setup-section').style.display   = 'block';
+  document.getElementById('courses-section').style.display    = 'none';
+  document.getElementById('detail-section').style.display     = 'none';
+  document.getElementById('quick-links-section').style.display = 'none';
+  document.getElementById('setup-section').style.display      = 'block';
   document.getElementById('connect-btn').disabled          = false;
   document.getElementById('auth-status').style.display     = 'none';
 }
@@ -121,6 +122,7 @@ async function fetchCourses() {
 
     courses = all;
     renderCourses();
+    showQuickLinks();
     initSettings();
   } catch(e) {
     setStatus('auth-status', 'Failed to fetch courses: ' + e.message, 'error');
@@ -420,6 +422,84 @@ function togglePalette(e, courseId, div) {
   div.appendChild(palette);
   openPalette = palette;
   setTimeout(() => { document.addEventListener('click', () => { palette.remove(); openPalette = null; }, { once: true }); }, 0);
+}
+
+
+/* ------------------------------------------------------------
+   Quick Links Panel
+   ------------------------------------------------------------ */
+
+const DEFAULT_LINKS = [
+  { name: 'Aeries',        url: 'https://coalingahuron.aeries.net/' },
+  { name: 'Parent Square', url: 'https://www.parentsquare.com/schools/8597/feeds' },
+  { name: 'DMS',           url: 'https://dms.fcoe.org/' },
+  { name: 'eSchool',       url: 'https://coalinga-huron.eschoolsolutions.com/logOnInitAction.do' },
+];
+
+function loadLinks() {
+  const saved = localStorage.getItem('gcdash-quick-links');
+  return saved ? JSON.parse(saved) : DEFAULT_LINKS;
+}
+
+function saveLinks(links) {
+  localStorage.setItem('gcdash-quick-links', JSON.stringify(links));
+}
+
+function renderQuickLinks() {
+  const links = loadLinks();
+  const grid  = document.getElementById('quick-links-grid');
+  grid.innerHTML = '';
+
+  links.forEach((link, i) => {
+    const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.url)}&sz=32`;
+    const a = document.createElement('a');
+    a.className = 'quick-link-item';
+    a.href      = link.url;
+    a.target    = '_blank';
+    a.rel       = 'noopener';
+    a.innerHTML = `
+      <img src="${favicon}" alt="" onerror="this.style.display='none'">
+      ${esc(link.name)}
+      <span class="quick-link-delete" onclick="deleteLink(event, ${i})">✕</span>`;
+    grid.appendChild(a);
+  });
+}
+
+function toggleAddLink() {
+  const form = document.getElementById('add-link-form');
+  form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+  if (form.style.display === 'flex') {
+    document.getElementById('link-name').focus();
+  }
+}
+
+function saveNewLink() {
+  const name = document.getElementById('link-name').value.trim();
+  const url  = document.getElementById('link-url').value.trim();
+  if (!name || !url) return;
+
+  const links = loadLinks();
+  links.push({ name, url: url.startsWith('http') ? url : 'https://' + url });
+  saveLinks(links);
+  renderQuickLinks();
+
+  document.getElementById('link-name').value = '';
+  document.getElementById('link-url').value  = '';
+  toggleAddLink();
+}
+
+function deleteLink(e, index) {
+  e.preventDefault();
+  e.stopPropagation();
+  const links = loadLinks();
+  links.splice(index, 1);
+  saveLinks(links);
+  renderQuickLinks();
+}
+
+function showQuickLinks() {
+  document.getElementById('quick-links-section').style.display = 'block';
+  renderQuickLinks();
 }
 
 
