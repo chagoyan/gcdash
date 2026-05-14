@@ -434,6 +434,9 @@ const DEFAULT_LINKS = [
   { name: 'Parent Square', url: 'https://www.parentsquare.com/schools/8597/feeds' },
   { name: 'DMS',           url: 'https://dms.fcoe.org/' },
   { name: 'eSchool',       url: 'https://coalinga-huron.eschoolsolutions.com/logOnInitAction.do' },
+  { name: 'CHUSD',         url: 'https://www.chusd.org/' },
+  { name: 'CHS',           url: 'https://chs.chusd.org/' },
+  { name: 'Gmail',         url: 'https://mail.google.com/' },
 ];
 
 function loadLinks() {
