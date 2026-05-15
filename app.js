@@ -767,10 +767,18 @@ function showStudentDetail(s, courseName) {
   const pct      = s.possible > 0 ? (s.earned/s.possible*100).toFixed(2)+'%' : 'N/A';
   const rowClass = s.possible > 0 ? (s.earned/s.possible*100) <= 60 ? 'row-red' : (s.earned/s.possible*100) <= 75 ? 'row-yellow' : 'row-green' : '';
 
+  // Build email
+  const missingList  = (s.assignments||[]).filter(a=>a.status==='missing').map(a=>`  - ${a.title}${a.dueDate?' (due '+fmtDate(a.dueDate)+')':''}`).join('\n');
+  const turnedInList = (s.assignments||[]).filter(a=>a.status==='turnedIn').map(a=>`  - ${a.title}`).join('\n');
+  const classworkUrl = `https://classroom.google.com/w/${btoa(selectedId)}/t/all`;
+  const subject      = encodeURIComponent(`Grade Update — ${courseName}`);
+  const body         = encodeURIComponent(`Hi ${s.name},\n\nHere is a summary of your current grade in ${courseName}:\n\nCurrent Grade: ${pct}\nEarned / Possible Points: ${s.earned} / ${s.possible}\n${missingList?'\nMissing Assignments:\n'+missingList:'\nNo missing assignments — great job!'}\n${turnedInList?'\nTurned In (awaiting grade):\n'+turnedInList:''}\n\nPlease reach out if you have any questions.\n\nView your assignments: ${classworkUrl}\n\nThank you,\nMr. Chagoyan`);
+  const gmailUrl     = s.email ? `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(s.email)}&su=${subject}&body=${body}` : '';
+
   let html = `
     <div class="student-detail-header">
       <span class="detail-back-btn" onclick="closeStudentDetail()">← Back to roster</span>
-      <h2>${esc(s.name)}</h2>
+      <h2>${esc(s.name)} ${gmailUrl ? `<a href="${gmailUrl}" class="email-btn" target="_blank" rel="noopener">✉️</a>` : ''}</h2>
       <div class="student-summary ${rowClass}">
         <span class="grade-cell">${pct}</span>
         <span>${s.earned} / ${s.possible} pts</span>
