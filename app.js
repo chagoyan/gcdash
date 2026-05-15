@@ -430,13 +430,15 @@ function togglePalette(e, courseId, div) {
    ------------------------------------------------------------ */
 
 const DEFAULT_LINKS = [
-  { name: 'Aeries',        url: 'https://coalingahuron.aeries.net/' },
-  { name: 'Parent Square', url: 'https://www.parentsquare.com/schools/8597/feeds' },
-  { name: 'DMS',           url: 'https://dms.fcoe.org/' },
-  { name: 'eSchool',       url: 'https://coalinga-huron.eschoolsolutions.com/logOnInitAction.do' },
-  { name: 'CHUSD',         url: 'https://www.chusd.org/' },
-  { name: 'CHS',           url: 'https://chs.chusd.org/' },
-  { name: 'Gmail',         url: 'https://mail.google.com/' },
+  { name: 'Aeries',           url: 'https://coalingahuron.aeries.net/' },
+  { name: 'Parent Square',    url: 'https://www.parentsquare.com/schools/8597/feeds' },
+  { name: 'DMS',              url: 'https://dms.fcoe.org/' },
+  { name: 'eSchool',          url: 'https://coalinga-huron.eschoolsolutions.com/logOnInitAction.do' },
+  { name: 'CHUSD',            url: 'https://www.chusd.org/' },
+  { name: 'CHS',              url: 'https://chs.chusd.org/' },
+  { name: 'Gmail',            url: 'https://mail.google.com/' },
+  { name: 'Navigate360',      url: 'https://ems.navigate360.com/login' },
+  { name: '📞 Main Office',   url: 'tel:15599357520,14502' },
 ];
 
 function loadLinks() {
