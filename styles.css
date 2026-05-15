@@ -590,8 +590,49 @@ h1 {
 
 
 /* ------------------------------------------------------------
-   Student Progress Report
+   Student Detail View
    ------------------------------------------------------------ */
+.student-name-link {
+  color: var(--orange);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.student-name-link:hover { text-decoration: underline; }
+
+.student-detail-header {
+  margin-bottom: 1.5rem;
+}
+
+.detail-back-btn {
+  font-size: 13px;
+  color: var(--orange);
+  cursor: pointer;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.detail-back-btn:hover { text-decoration: underline; }
+
+.student-summary {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  font-size: 13px;
+  color: var(--gray-dark);
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--gray-light);
+}
+
+.student-summary.row-red    { border-left-color: #E24B4A; background: #2a1010; }
+.student-summary.row-yellow { border-left-color: #EF9F27; background: #2a2010; }
+.student-summary.row-green  { border-left-color: #639922; background: #0f2010; }
+
+.status-graded   { color: #86EFAC; }
+.status-turnedin { color: #ffd166; }
+.status-missing  { color: #ff6b6b; }
 .progress-header {
   display: flex;
   align-items: center;

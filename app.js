@@ -755,7 +755,59 @@ async function monitorSelected() {
       }
     });
 
+    // Build per-student assignment breakdown
+    const studentAssignments = {}; // userId → array of assignment details
+    students.forEach(s => {
+      studentAssignments[s.userId] = [];
+    });
+
+    submissionResults.forEach(({ cwId, maxPoints, dueDate, submissions }) => {
+      const cw = coursework.find(c => c.id === cwId);
+      if (!cw) return;
+
+      const submittedStudents = new Set(submissions.map(s => s.userId));
+
+      submissions.forEach(sub => {
+        if (!studentAssignments[sub.userId]) return;
+        let status, earned = null;
+        if (sub.assignedGrade != null) {
+          status = 'graded';
+          earned = sub.assignedGrade;
+        } else if (sub.state === 'TURNED_IN' || sub.state === 'RETURNED') {
+          status = 'turnedIn';
+        } else {
+          status = 'notSubmitted';
+        }
+        studentAssignments[sub.userId].push({
+          title:     cw.title,
+          dueDate:   dueDate,
+          maxPoints: maxPoints,
+          status,
+          earned
+        });
+      });
+
+      // Students with no submission record
+      Object.keys(studentAssignments).forEach(uid => {
+        if (!submittedStudents.has(uid)) {
+          studentAssignments[uid].push({
+            title:     cw.title,
+            dueDate:   dueDate,
+            maxPoints: maxPoints,
+            status:    'missing',
+            earned:    null
+          });
+        }
+      });
+    });
+
+    // Attach assignments to studentMap
+    Object.keys(studentMap).forEach(uid => {
+      studentMap[uid].assignments = studentAssignments[uid] || [];
+    });
+
     setStatus('fetch-status', 'Done!', 'success');
+    window._cachedProgressData = { studentMap, courseId: selectedId };
     showProgressReport(studentMap, selectedId);
 
   } catch(e) {
@@ -823,7 +875,7 @@ Mr. Chagoyan`
 
     html += `
       <tr class="${rowClass}">
-        <td>${esc(s.name)}</td>
+        <td><span class="student-name-link" onclick="showStudentDetail(${JSON.stringify(s).replace(/"/g, '&quot;')}, '${esc(course.name)}')">${esc(s.name)}</span></td>
         <td class="grade-cell">${pctLabel}</td>
         <td>${s.earned} / ${s.possible}</td>
         <td>${s.turnedIn > 0 ? s.turnedIn + ' turned in' : '—'}</td>
@@ -842,9 +894,74 @@ Mr. Chagoyan`
 }
 
 
-/* ------------------------------------------------------------
-   Print View
-   ------------------------------------------------------------ */
+function showStudentDetail(s, courseName) {
+  const assignments = s.assignments || [];
+
+  // Sort: missing first, then turned in, then graded
+  const order = { missing: 0, notSubmitted: 0, turnedIn: 1, graded: 2 };
+  const sorted = [...assignments].sort((a, b) => order[a.status] - order[b.status]);
+
+  const pct      = s.possible > 0 ? (s.earned / s.possible * 100).toFixed(2) + '%' : 'N/A';
+  const rowClass = s.possible > 0 ? (s.earned / s.possible * 100) <= 60 ? 'row-red' : (s.earned / s.possible * 100) <= 75 ? 'row-yellow' : 'row-green' : '';
+
+  let html = `
+    <div class="student-detail-header">
+      <span class="detail-back-btn" onclick="closeStudentDetail()">← Back to roster</span>
+      <h2>${esc(s.name)}</h2>
+      <div class="student-summary ${rowClass}">
+        <span class="grade-cell">${pct}</span>
+        <span>${s.earned} / ${s.possible} pts</span>
+        <span>${s.turnedIn > 0 ? s.turnedIn + ' turned in' : ''}</span>
+        <span>${s.missing > 0 ? s.missing + ' missing' : ''}</span>
+      </div>
+    </div>
+    <table class="progress-table">
+      <thead><tr>
+        <th>Assignment</th>
+        <th>Due</th>
+        <th>Status</th>
+        <th>Points</th>
+      </tr></thead>
+      <tbody>`;
+
+  sorted.forEach(a => {
+    const due = a.dueDate ? fmtDate(a.dueDate) : '—';
+    let statusLabel, statusClass;
+    if (a.status === 'graded') {
+      statusLabel = '✅ Graded';
+      statusClass = 'status-graded';
+    } else if (a.status === 'turnedIn') {
+      statusLabel = '📬 Turned In';
+      statusClass = 'status-turnedin';
+    } else {
+      statusLabel = '❌ Missing';
+      statusClass = 'status-missing';
+    }
+    const points = a.status === 'graded' ? `${a.earned} / ${a.maxPoints}` : `— / ${a.maxPoints}`;
+
+    html += `
+      <tr>
+        <td>${esc(a.title)}</td>
+        <td style="white-space:nowrap;">${due}</td>
+        <td class="${statusClass}">${statusLabel}</td>
+        <td>${points}</td>
+      </tr>`;
+  });
+
+  html += `</tbody></table>`;
+
+  document.getElementById('detail-title').textContent     = '';
+  document.getElementById('detail-body').innerHTML        = html;
+  document.getElementById('detail-section').style.display = 'block';
+  document.getElementById('detail-actions').style.display = 'none';
+  document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeStudentDetail() {
+  // Re-run the progress report with cached data
+  const cached = window._cachedProgressData;
+  if (cached) showProgressReport(cached.studentMap, cached.courseId);
+}
 
 function openPrintView(mode) {
   const course = courses.find(c => c.id === selectedId);
