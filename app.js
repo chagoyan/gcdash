@@ -6,13 +6,13 @@
 /* ------------------------------------------------------------
    State
    ------------------------------------------------------------ */
-let tokenClient;        // Google OAuth token client
-let accessToken;        // Short-lived access token (expires ~1hr)
-let courses    = [];    // All courses fetched from Classroom API
-let selectedId = null;  // Currently selected course ID
-let courseData = {};    // Cached assignments/materials per course ID
+let tokenClient;
+let accessToken;
+let courses    = [];
+let selectedId = null;
+let courseData = {};
 let activeTab  = 'ACTIVE';
-let showOwnedOnly = true; // default: show only courses you teach
+let showOwnedOnly = true;
 
 
 /* ------------------------------------------------------------
@@ -32,14 +32,8 @@ function setStatus(id, msg, type) {
 
 function connectGoogle() {
   const clientId = (typeof CONFIG !== 'undefined' && CONFIG.clientId) ? CONFIG.clientId : '';
-  if (!clientId) {
-    setStatus('auth-status', 'Client ID not found. Please check your config.js or environment variable.', 'error');
-    return;
-  }
-  if (!window.google || !window.google.accounts) {
-    setStatus('auth-status', 'Google Identity Services not ready. Please refresh and try again.', 'error');
-    return;
-  }
+  if (!clientId) { setStatus('auth-status', 'Client ID not found.', 'error'); return; }
+  if (!window.google || !window.google.accounts) { setStatus('auth-status', 'Google Identity Services not ready.', 'error'); return; }
 
   setStatus('auth-status', 'Opening Google sign-in…', 'info');
   document.getElementById('connect-btn').disabled = true;
@@ -83,16 +77,13 @@ async function handleToken(resp) {
 
 function resetApp() {
   if (accessToken && window.google) google.accounts.oauth2.revoke(accessToken);
-  accessToken = null;
-  courses     = [];
-  selectedId  = null;
-  courseData  = {};
-  document.getElementById('courses-section').style.display    = 'none';
-  document.getElementById('detail-section').style.display     = 'none';
+  accessToken = null; courses = []; selectedId = null; courseData = {};
+  document.getElementById('courses-section').style.display     = 'none';
+  document.getElementById('detail-section').style.display      = 'none';
   document.getElementById('quick-links-section').style.display = 'none';
-  document.getElementById('setup-section').style.display      = 'block';
-  document.getElementById('connect-btn').disabled          = false;
-  document.getElementById('auth-status').style.display     = 'none';
+  document.getElementById('setup-section').style.display       = 'block';
+  document.getElementById('connect-btn').disabled              = false;
+  document.getElementById('auth-status').style.display         = 'none';
 }
 
 
@@ -113,13 +104,11 @@ async function fetchCourses() {
   try {
     let all = [], pageToken = '';
     do {
-      const url = 'https://classroom.googleapis.com/v1/courses?pageSize=50' +
-                  (pageToken ? '&pageToken=' + pageToken : '');
+      const url = 'https://classroom.googleapis.com/v1/courses?pageSize=50' + (pageToken ? '&pageToken=' + pageToken : '');
       const data = await apiGet(url);
-      all       = all.concat(data.courses || []);
+      all = all.concat(data.courses || []);
       pageToken = data.nextPageToken || '';
     } while (pageToken);
-
     courses = all;
     renderCourses();
     showQuickLinks();
@@ -133,28 +122,18 @@ async function fetchCourses() {
 async function fetchSelected() {
   if (!selectedId) return;
   const btn = document.getElementById('fetch-btn');
-  btn.disabled    = true;
-  btn.textContent = 'Fetching…';
+  btn.disabled = true; btn.textContent = 'Fetching…';
 
   try {
     setStatus('fetch-status', 'Fetching assignments…', 'info');
-    const awData = await apiGet(
-      `https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork?pageSize=100&orderBy=dueDate asc`
-    ).catch(e => { throw new Error('Assignments: ' + e.message); });
-
+    const awData = await apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork?pageSize=100&orderBy=dueDate asc`).catch(e => { throw new Error('Assignments: ' + e.message); });
     setStatus('fetch-status', 'Fetching materials…', 'info');
-    const mwData = await apiGet(
-      `https://classroom.googleapis.com/v1/courses/${selectedId}/courseWorkMaterials?pageSize=100`
-    ).catch(e => { throw new Error('Materials: ' + e.message); });
-
+    const mwData = await apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWorkMaterials?pageSize=100`).catch(e => { throw new Error('Materials: ' + e.message); });
     setStatus('fetch-status', 'Fetching topics…', 'info');
-    const tpData = await apiGet(
-      `https://classroom.googleapis.com/v1/courses/${selectedId}/topics?pageSize=100`
-    ).catch(() => ({ topic: [] }));
+    const tpData = await apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/topics?pageSize=100`).catch(() => ({ topic: [] }));
 
     const topicMap = {};
     (tpData.topic || []).forEach(t => { topicMap[t.topicId] = t.name; });
-
     const assignments = (awData.courseWork || []).slice().sort((a, b) => toTimestamp(a) - toTimestamp(b));
     const materials   = (mwData.courseWorkMaterial || []).slice().sort((a, b) => toTimestamp(a) - toTimestamp(b));
 
@@ -165,87 +144,55 @@ async function fetchSelected() {
     setStatus('fetch-status', 'Error: ' + e.message, 'error');
   }
 
-  btn.disabled    = false;
-  btn.textContent = 'Fetch assignments & materials';
+  btn.disabled = false; btn.textContent = 'Fetch assignments & materials';
 }
 
 
 /* ------------------------------------------------------------
-   Drive Sync — Settings persistence across devices
+   Drive Sync
    ------------------------------------------------------------ */
 
 const DRIVE_FOLDER_NAME = '.gcdash-config';
 const DRIVE_FILE_NAME   = 'settings.json';
-
-let driveFolderId = null;
-let driveFileId   = null;
-let syncTimeout   = null;
+let driveFolderId = null, driveFileId = null, syncTimeout = null;
 
 async function initSettings() {
-  try {
-    await syncFromDrive();
-  } catch(e) {
-    console.log('Drive sync unavailable, using localStorage:', e.message);
-  }
+  try { await syncFromDrive(); } catch(e) { console.log('Drive sync unavailable:', e.message); }
 }
 
 async function syncFromDrive() {
   if (!accessToken) return;
   driveFolderId = await findOrCreateFolder();
   const file = await findSettingsFile();
-  if (file) {
-    driveFileId = file.id;
-    const settings = await downloadSettings(file.id);
-    if (settings) mergeSettings(settings);
-  } else {
-    await saveSettingsToDrive();
-  }
+  if (file) { driveFileId = file.id; const s = await downloadSettings(file.id); if (s) mergeSettings(s); }
+  else await saveSettingsToDrive();
 }
 
 async function findOrCreateFolder() {
-  const query = encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
-    headers: { Authorization: 'Bearer ' + accessToken }
-  });
-  const data = await r.json();
-  if (data.files && data.files.length > 0) return data.files[0].id;
-  const create = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
-  });
-  const folder = await create.json();
-  return folder.id;
+  const q = encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { Authorization: 'Bearer ' + accessToken } });
+  const d = await r.json();
+  if (d.files && d.files.length > 0) return d.files[0].id;
+  const c = await fetch('https://www.googleapis.com/drive/v3/files', { method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }) });
+  return (await c.json()).id;
 }
 
 async function findSettingsFile() {
   if (!driveFolderId) return null;
-  const query = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and '${driveFolderId}' in parents and trashed=false`);
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
-    headers: { Authorization: 'Bearer ' + accessToken }
-  });
-  const data = await r.json();
-  return data.files && data.files.length > 0 ? data.files[0] : null;
+  const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and '${driveFolderId}' in parents and trashed=false`);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { Authorization: 'Bearer ' + accessToken } });
+  const d = await r.json();
+  return d.files && d.files.length > 0 ? d.files[0] : null;
 }
 
 async function downloadSettings(fileId) {
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-    headers: { Authorization: 'Bearer ' + accessToken }
-  });
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: 'Bearer ' + accessToken } });
   try { return await r.json(); } catch(e) { return null; }
 }
 
 function mergeSettings(settings) {
-  if (settings.courseColors) {
-    Object.entries(settings.courseColors).forEach(([id, color]) => {
-      localStorage.setItem('course-color-' + id, color);
-    });
-  }
-  if (settings.courseOrder) {
-    Object.entries(settings.courseOrder).forEach(([tab, ids]) => {
-      localStorage.setItem('course-order-' + tab, JSON.stringify(ids));
-    });
-  }
+  if (settings.courseColors) Object.entries(settings.courseColors).forEach(([id, color]) => localStorage.setItem('course-color-' + id, color));
+  if (settings.courseOrder)  Object.entries(settings.courseOrder).forEach(([tab, ids]) => localStorage.setItem('course-order-' + tab, JSON.stringify(ids)));
   if (courses.length) renderCourses();
 }
 
@@ -259,65 +206,104 @@ function collectSettings() {
   return { courseColors, courseOrder, updatedAt: new Date().toISOString() };
 }
 
-function debouncedSave() {
-  clearTimeout(syncTimeout);
-  syncTimeout = setTimeout(saveSettingsToDrive, 1500);
-}
+function debouncedSave() { clearTimeout(syncTimeout); syncTimeout = setTimeout(saveSettingsToDrive, 1500); }
 
 async function saveSettingsToDrive() {
   if (!accessToken || !driveFolderId) return;
-  const settings = collectSettings();
-  const body     = JSON.stringify(settings, null, 2);
+  const body = JSON.stringify(collectSettings(), null, 2);
   try {
     if (driveFileId) {
-      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, {
-        method: 'PATCH',
-        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-        body
-      });
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, { method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, body });
     } else {
-      const meta = { name: DRIVE_FILE_NAME, parents: [driveFolderId] };
       const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-      form.append('file',     new Blob([body],                  { type: 'application/json' }));
-      const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + accessToken },
-        body: form
-      });
-      const file = await r.json();
-      driveFileId = file.id;
+      form.append('metadata', new Blob([JSON.stringify({ name: DRIVE_FILE_NAME, parents: [driveFolderId] })], { type: 'application/json' }));
+      form.append('file', new Blob([body], { type: 'application/json' }));
+      const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', headers: { Authorization: 'Bearer ' + accessToken }, body: form });
+      driveFileId = (await r.json()).id;
     }
     console.log('Settings synced to Drive ✓');
-  } catch(e) {
-    console.log('Drive sync failed:', e.message);
-  }
+  } catch(e) { console.log('Drive sync failed:', e.message); }
 }
 
 
 /* ------------------------------------------------------------
-   Drag and Drop — Course Card Reordering
+   Quick Links Panel
+   ------------------------------------------------------------ */
+
+const DEFAULT_LINKS = [
+  { name: 'Aeries',          url: 'https://coalingahuron.aeries.net/' },
+  { name: 'Parent Square',   url: 'https://www.parentsquare.com/schools/8597/feeds' },
+  { name: 'DMS',             url: 'https://dms.fcoe.org/' },
+  { name: 'eSchool',         url: 'https://coalinga-huron.eschoolsolutions.com/logOnInitAction.do' },
+  { name: 'CHUSD',           url: 'https://www.chusd.org/' },
+  { name: 'CHS',             url: 'https://chs.chusd.org/' },
+  { name: 'Gmail',           url: 'https://mail.google.com/' },
+  { name: 'Navigate360',     url: 'https://ems.navigate360.com/login' },
+  { name: '📞 Main Office',  url: 'tel:15599357520,14502' },
+];
+
+function loadLinks() { const s = localStorage.getItem('gcdash-quick-links'); return s ? JSON.parse(s) : DEFAULT_LINKS; }
+function saveLinks(links) { localStorage.setItem('gcdash-quick-links', JSON.stringify(links)); }
+
+function renderQuickLinks() {
+  const links = loadLinks();
+  const grid  = document.getElementById('quick-links-grid');
+  grid.innerHTML = '';
+  links.forEach((link, i) => {
+    const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.url)}&sz=32`;
+    const a = document.createElement('a');
+    a.className = 'quick-link-item';
+    a.href = link.url; a.target = '_blank'; a.rel = 'noopener';
+    a.innerHTML = `<img src="${favicon}" alt="" onerror="this.style.display='none'">${esc(link.name)}<span class="quick-link-delete" onclick="deleteLink(event,${i})">✕</span>`;
+    grid.appendChild(a);
+  });
+}
+
+function toggleAddLink() {
+  const form = document.getElementById('add-link-form');
+  form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+  if (form.style.display === 'flex') document.getElementById('link-name').focus();
+}
+
+function saveNewLink() {
+  const name = document.getElementById('link-name').value.trim();
+  const url  = document.getElementById('link-url').value.trim();
+  if (!name || !url) return;
+  const links = loadLinks();
+  links.push({ name, url: url.startsWith('http') || url.startsWith('tel:') ? url : 'https://' + url });
+  saveLinks(links); renderQuickLinks();
+  document.getElementById('link-name').value = '';
+  document.getElementById('link-url').value  = '';
+  toggleAddLink();
+}
+
+function deleteLink(e, index) {
+  e.preventDefault(); e.stopPropagation();
+  const links = loadLinks();
+  links.splice(index, 1);
+  saveLinks(links); renderQuickLinks();
+}
+
+function showQuickLinks() {
+  document.getElementById('quick-links-section').style.display = 'block';
+  renderQuickLinks();
+}
+
+
+/* ------------------------------------------------------------
+   Drag and Drop
    ------------------------------------------------------------ */
 
 function getStorageKey(tabKey) { return 'course-order-' + tabKey; }
-
-function getSavedOrder(tabKey) {
-  const saved = localStorage.getItem(getStorageKey(tabKey));
-  return saved ? JSON.parse(saved) : null;
-}
-
-function saveOrder(tabKey, ids) {
-  localStorage.setItem(getStorageKey(tabKey), JSON.stringify(ids));
-}
+function getSavedOrder(tabKey) { const s = localStorage.getItem(getStorageKey(tabKey)); return s ? JSON.parse(s) : null; }
+function saveOrder(tabKey, ids) { localStorage.setItem(getStorageKey(tabKey), JSON.stringify(ids)); }
 
 function applyOrder(list, tabKey) {
   const saved = getSavedOrder(tabKey);
   if (!saved) return list;
   return [...list].sort((a, b) => {
     const ai = saved.indexOf(a.id), bi = saved.indexOf(b.id);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
+    if (ai === -1) return 1; if (bi === -1) return -1; return ai - bi;
   });
 }
 
@@ -351,7 +337,7 @@ function enableDragAndDrop(grid, tabKey) {
 
 
 /* ------------------------------------------------------------
-   Course Card Colors — localStorage persistence
+   Course Card Colors
    ------------------------------------------------------------ */
 
 const COURSE_COLORS = [
@@ -374,15 +360,13 @@ const COURSE_COLORS = [
   { label: 'Graphite (light)',value: '#9CA3AF' },
 ];
 
-function getCourseColor(id)       { return localStorage.getItem('course-color-' + id) || null; }
-function setCourseColor(id, color) {
-  color ? localStorage.setItem('course-color-' + id, color) : localStorage.removeItem('course-color-' + id);
-}
+function getCourseColor(id)        { return localStorage.getItem('course-color-' + id) || null; }
+function setCourseColor(id, color) { color ? localStorage.setItem('course-color-' + id, color) : localStorage.removeItem('course-color-' + id); }
 
 function getTextColor(hex) {
   if (!hex) return '';
   const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  return ((r*299 + g*587 + b*114) / 1000) > 160 ? '#333333' : '#ffffff';
+  return ((r*299+g*587+b*114)/1000) > 160 ? '#333333' : '#ffffff';
 }
 
 function applyCardColor(div, color) {
@@ -396,10 +380,8 @@ let openPalette = null;
 function togglePalette(e, courseId, div) {
   e.stopPropagation();
   if (openPalette) { openPalette.remove(); openPalette = null; return; }
-
   const palette = document.createElement('div');
   palette.className = 'color-palette';
-
   COURSE_COLORS.forEach(c => {
     const sw = document.createElement('div');
     sw.className = 'color-swatch' + (c.value === null ? ' none' : '');
@@ -418,7 +400,6 @@ function togglePalette(e, courseId, div) {
     };
     palette.appendChild(sw);
   });
-
   div.appendChild(palette);
   openPalette = palette;
   setTimeout(() => { document.addEventListener('click', () => { palette.remove(); openPalette = null; }, { once: true }); }, 0);
@@ -426,90 +407,7 @@ function togglePalette(e, courseId, div) {
 
 
 /* ------------------------------------------------------------
-   Quick Links Panel
-   ------------------------------------------------------------ */
-
-const DEFAULT_LINKS = [
-  { name: 'Aeries',           url: 'https://coalingahuron.aeries.net/' },
-  { name: 'Parent Square',    url: 'https://www.parentsquare.com/schools/8597/feeds' },
-  { name: 'DMS',              url: 'https://dms.fcoe.org/' },
-  { name: 'eSchool',          url: 'https://coalinga-huron.eschoolsolutions.com/logOnInitAction.do' },
-  { name: 'CHUSD',            url: 'https://www.chusd.org/' },
-  { name: 'CHS',              url: 'https://chs.chusd.org/' },
-  { name: 'Gmail',            url: 'https://mail.google.com/' },
-  { name: 'Navigate360',      url: 'https://ems.navigate360.com/login' },
-  { name: '📞 Main Office',   url: 'tel:15599357520,14502' },
-];
-
-function loadLinks() {
-  const saved = localStorage.getItem('gcdash-quick-links');
-  return saved ? JSON.parse(saved) : DEFAULT_LINKS;
-}
-
-function saveLinks(links) {
-  localStorage.setItem('gcdash-quick-links', JSON.stringify(links));
-}
-
-function renderQuickLinks() {
-  const links = loadLinks();
-  const grid  = document.getElementById('quick-links-grid');
-  grid.innerHTML = '';
-
-  links.forEach((link, i) => {
-    const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.url)}&sz=32`;
-    const a = document.createElement('a');
-    a.className = 'quick-link-item';
-    a.href      = link.url;
-    a.target    = '_blank';
-    a.rel       = 'noopener';
-    a.innerHTML = `
-      <img src="${favicon}" alt="" onerror="this.style.display='none'">
-      ${esc(link.name)}
-      <span class="quick-link-delete" onclick="deleteLink(event, ${i})">✕</span>`;
-    grid.appendChild(a);
-  });
-}
-
-function toggleAddLink() {
-  const form = document.getElementById('add-link-form');
-  form.style.display = form.style.display === 'none' ? 'flex' : 'none';
-  if (form.style.display === 'flex') {
-    document.getElementById('link-name').focus();
-  }
-}
-
-function saveNewLink() {
-  const name = document.getElementById('link-name').value.trim();
-  const url  = document.getElementById('link-url').value.trim();
-  if (!name || !url) return;
-
-  const links = loadLinks();
-  links.push({ name, url: url.startsWith('http') ? url : 'https://' + url });
-  saveLinks(links);
-  renderQuickLinks();
-
-  document.getElementById('link-name').value = '';
-  document.getElementById('link-url').value  = '';
-  toggleAddLink();
-}
-
-function deleteLink(e, index) {
-  e.preventDefault();
-  e.stopPropagation();
-  const links = loadLinks();
-  links.splice(index, 1);
-  saveLinks(links);
-  renderQuickLinks();
-}
-
-function showQuickLinks() {
-  document.getElementById('quick-links-section').style.display = 'block';
-  renderQuickLinks();
-}
-
-
-/* ------------------------------------------------------------
-   Courses UI — Tabs & Cards
+   Courses UI
    ------------------------------------------------------------ */
 
 function toggleOwned() {
@@ -541,15 +439,15 @@ function renderCourses() {
 
   tabDefs.forEach(t => {
     const btn = document.createElement('button');
-    btn.className   = 'tab' + (t.key === activeTab ? ' active' : '');
+    btn.className = 'tab' + (t.key === activeTab ? ' active' : '');
     btn.dataset.key = t.key;
-    btn.innerHTML   = `${t.label} <span class="tab-badge">${groups[t.key].length}</span>`;
-    btn.onclick     = () => switchTab(t.key);
+    btn.innerHTML = `${t.label} <span class="tab-badge">${groups[t.key].length}</span>`;
+    btn.onclick = () => switchTab(t.key);
     tabsEl.appendChild(btn);
 
     const panel = document.createElement('div');
     panel.className = 'tab-panel' + (t.key === activeTab ? ' active' : '');
-    panel.id        = 'tab-panel-' + t.key;
+    panel.id = 'tab-panel-' + t.key;
 
     const grid = document.createElement('div');
     grid.className = 'course-grid';
@@ -600,7 +498,7 @@ function selectCourse(id) {
 
 
 /* ------------------------------------------------------------
-   Detail Panel — Assignments & Materials
+   Detail Panel
    ------------------------------------------------------------ */
 
 function showDetail(courseId) {
@@ -621,17 +519,15 @@ function showDetail(courseId) {
 
       if (g.assignments.length) {
         const lbl = document.createElement('div');
-        lbl.className   = 'section-heading';
-        lbl.textContent = 'Assignments';
+        lbl.className = 'section-heading'; lbl.textContent = 'Assignments';
         block.appendChild(lbl);
-        const ul = document.createElement('ul');
-        ul.className = 'item-list';
+        const ul = document.createElement('ul'); ul.className = 'item-list';
         g.assignments.forEach(a => {
           const li = document.createElement('li');
           li.innerHTML = `
             <div class="item-title">${esc(a.title)}</div>
-            <div class="item-meta">${a.dueDate ? 'Due: '+fmtDate(a.dueDate) : 'No due date'}${a.maxPoints ? ' · '+a.maxPoints+' pts' : ''}</div>
-            ${a.description ? '<div class="item-desc">'+esc(a.description.slice(0,120))+(a.description.length>120?'…':'')+'</div>' : ''}
+            <div class="item-meta">${a.dueDate?'Due: '+fmtDate(a.dueDate):'No due date'}${a.maxPoints?' · '+a.maxPoints+' pts':''}</div>
+            ${a.description?'<div class="item-desc">'+esc(a.description.slice(0,120))+(a.description.length>120?'…':'')+'</div>':''}
             ${renderAttachments(a.materials)}`;
           ul.appendChild(li);
         });
@@ -640,16 +536,14 @@ function showDetail(courseId) {
 
       if (g.materials.length) {
         const lbl = document.createElement('div');
-        lbl.className   = 'section-heading';
-        lbl.textContent = 'Materials';
+        lbl.className = 'section-heading'; lbl.textContent = 'Materials';
         block.appendChild(lbl);
-        const ul = document.createElement('ul');
-        ul.className = 'item-list';
+        const ul = document.createElement('ul'); ul.className = 'item-list';
         g.materials.forEach(m => {
           const li = document.createElement('li');
           li.innerHTML = `
             <div class="item-title">${esc(m.title)}</div>
-            ${m.description ? '<div class="item-desc">'+esc(m.description.slice(0,120))+(m.description.length>120?'…':'')+'</div>' : ''}
+            ${m.description?'<div class="item-desc">'+esc(m.description.slice(0,120))+(m.description.length>120?'…':'')+'</div>':''}
             ${renderAttachments(m.materials)}`;
           ul.appendChild(li);
         });
@@ -679,32 +573,31 @@ function closeDetail() {
 async function monitorSelected() {
   if (!selectedId) return;
   const btn = document.getElementById('monitor-btn');
-  btn.disabled    = true;
-  btn.textContent = 'Loading…';
+  btn.disabled = true; btn.textContent = 'Loading…';
   setStatus('fetch-status', 'Fetching roster…', 'info');
 
   try {
+    // Fetch students
     let students = [], studentPageToken = '';
     do {
-      const url = `https://classroom.googleapis.com/v1/courses/${selectedId}/students?pageSize=100` +
-                  (studentPageToken ? '&pageToken=' + studentPageToken : '');
+      const url = `https://classroom.googleapis.com/v1/courses/${selectedId}/students?pageSize=100` + (studentPageToken ? '&pageToken=' + studentPageToken : '');
       const data = await apiGet(url);
       students = students.concat(data.students || []);
       studentPageToken = data.nextPageToken || '';
     } while (studentPageToken);
 
-    console.log('Students fetched:', students.length);
-    console.log('First student:', students[0]);
-
+    // Fetch coursework
     const cwData     = await apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork?pageSize=100`);
     const coursework = (cwData.courseWork || []).filter(cw => cw.maxPoints > 0);
 
     setStatus('fetch-status', 'Fetching submissions…', 'info');
+
+    // Fetch all submissions
     const submissionResults = await Promise.all(
       coursework.map(cw =>
         apiGet(`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork/${cw.id}/studentSubmissions?pageSize=200`)
-          .then(d => ({ cwId: cw.id, maxPoints: cw.maxPoints, dueDate: cw.dueDate, submissions: d.studentSubmissions || [] }))
-          .catch(() => ({ cwId: cw.id, maxPoints: cw.maxPoints, dueDate: cw.dueDate, submissions: [] }))
+          .then(d => ({ cw, maxPoints: cw.maxPoints, dueDate: cw.dueDate, submissions: d.studentSubmissions || [] }))
+          .catch(() => ({ cw, maxPoints: cw.maxPoints, dueDate: cw.dueDate, submissions: [] }))
       )
     );
 
@@ -712,98 +605,65 @@ async function monitorSelected() {
     const studentMap = {};
     students.forEach(s => {
       studentMap[s.userId] = {
-        name:     s.profile.name.fullName,
-        userId:   s.userId,
-        email:    s.profile.emailAddress || '',
-        earned:   0,
-        possible: 0,
-        missing:  0,
-        turnedIn: 0
+        name:        s.profile.name.fullName,
+        userId:      s.userId,
+        email:       s.profile.emailAddress || '',
+        earned:      0,
+        possible:    0,
+        missing:     0,
+        turnedIn:    0,
+        assignments: []
       };
     });
-
-    window._debugStudentMap = studentMap;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    submissionResults.forEach(({ maxPoints, dueDate, submissions }) => {
+    // Process each assignment's submissions
+    submissionResults.forEach(({ cw, maxPoints, dueDate, submissions }) => {
+      // Determine if past due
       let isPastDue = true;
       if (dueDate) {
         const due = new Date(dueDate.year, (dueDate.month||1)-1, dueDate.day||1);
         isPastDue = due <= today;
       }
+
       const submittedStudents = new Set(submissions.map(s => s.userId));
 
+      // Process submissions
       submissions.forEach(sub => {
         const st = studentMap[sub.userId];
         if (!st) return;
-        if (sub.assignedGrade != null) {
-          st.possible += maxPoints;
-          st.earned   += sub.assignedGrade;
-        } else if (sub.state === 'TURNED_IN' || sub.state === 'RETURNED') {
-          st.turnedIn += 1;
-        } else if (isPastDue) {
-          st.missing += 1;
-        }
-      });
 
-      if (isPastDue) {
-        Object.keys(studentMap).forEach(uid => {
-          if (!submittedStudents.has(uid)) studentMap[uid].missing += 1;
-        });
-      }
-    });
-
-    // Build per-student assignment breakdown
-    const studentAssignments = {}; // userId → array of assignment details
-    students.forEach(s => {
-      studentAssignments[s.userId] = [];
-    });
-
-    submissionResults.forEach(({ cwId, maxPoints, dueDate, submissions }) => {
-      const cw = coursework.find(c => c.id === cwId);
-      if (!cw) return;
-
-      const submittedStudents = new Set(submissions.map(s => s.userId));
-
-      submissions.forEach(sub => {
-        if (!studentAssignments[sub.userId]) return;
         let status, earned = null;
+
         if (sub.assignedGrade != null) {
           status = 'graded';
           earned = sub.assignedGrade;
+          st.possible += maxPoints;
+          st.earned   += sub.assignedGrade;
         } else if (sub.state === 'TURNED_IN' || sub.state === 'RETURNED') {
           status = 'turnedIn';
+          st.turnedIn += 1;
+        } else if (isPastDue) {
+          status = 'missing';
+          st.missing += 1;
         } else {
           status = 'notSubmitted';
         }
-        studentAssignments[sub.userId].push({
-          title:     cw.title,
-          dueDate:   dueDate,
-          maxPoints: maxPoints,
-          status,
-          earned
+
+        st.assignments.push({ title: cw.title, dueDate, maxPoints, status, earned });
+      });
+
+      // Students with no submission record — missing if past due
+      if (isPastDue) {
+        Object.keys(studentMap).forEach(uid => {
+          if (!submittedStudents.has(uid)) {
+            studentMap[uid].missing += 1;
+            studentMap[uid].assignments.push({ title: cw.title, dueDate, maxPoints, status: 'missing', earned: null });
+          }
         });
-      });
-
-      // Students with no submission record
-      Object.keys(studentAssignments).forEach(uid => {
-        if (!submittedStudents.has(uid)) {
-          studentAssignments[uid].push({
-            title:     cw.title,
-            dueDate:   dueDate,
-            maxPoints: maxPoints,
-            status:    'missing',
-            earned:    null
-          });
-        }
-      });
-    });
-
-    // Attach assignments to studentMap
-    Object.keys(studentMap).forEach(uid => {
-      studentMap[uid].assignments = studentAssignments[uid] || [];
+      }
     });
 
     setStatus('fetch-status', 'Done!', 'success');
@@ -811,11 +671,11 @@ async function monitorSelected() {
     showProgressReport(studentMap, selectedId);
 
   } catch(e) {
+    console.error('Monitor error:', e);
     setStatus('fetch-status', 'Error: ' + e.message, 'error');
   }
 
-  btn.disabled    = false;
-  btn.textContent = 'Monitor student progress';
+  btn.disabled = false; btn.textContent = 'Monitor student progress';
 }
 
 function showProgressReport(studentMap, courseId) {
@@ -838,21 +698,27 @@ function showProgressReport(studentMap, courseId) {
     </div>
     <table class="progress-table">
       <thead><tr>
-        <th>Student</th>
-        <th>Grade</th>
-        <th>Earned / Possible</th>
-        <th>Turned In</th>
-        <th>Missing</th>
-        <th></th>
+        <th>Student</th><th>Grade</th><th>Earned / Possible</th><th>Turned In</th><th>Missing</th><th></th>
       </tr></thead>
       <tbody>`;
 
   rows.forEach(s => {
-    const pct      = s.possible > 0 ? (s.earned / s.possible) * 100 : null;
-    const pctLabel = pct !== null ? pct.toFixed(2) + '%' : 'N/A';
+    const pct      = s.possible > 0 ? (s.earned/s.possible)*100 : null;
+    const pctLabel = pct !== null ? pct.toFixed(2)+'%' : 'N/A';
     const rowClass = pct === null ? '' : pct <= 60 ? 'row-red' : pct <= 75 ? 'row-yellow' : 'row-green';
 
-    const classworkUrl = `https://classroom.google.com/w/${btoa(selectedId)}/t/all`;
+    // Build missing and turned in lists for email
+    const missingList = s.assignments
+      .filter(a => a.status === 'missing')
+      .map(a => `  - ${a.title}${a.dueDate ? ' (due '+fmtDate(a.dueDate)+')' : ''}`)
+      .join('\n');
+
+    const turnedInList = s.assignments
+      .filter(a => a.status === 'turnedIn')
+      .map(a => `  - ${a.title}`)
+      .join('\n');
+
+    const classworkUrl = `https://classroom.google.com/w/${btoa(courseId)}/t/all`;
     const subject = encodeURIComponent(`Grade Update — ${course.name}`);
     const body = encodeURIComponent(
 `Hi ${s.name},
@@ -861,8 +727,8 @@ Here is a summary of your current grade in ${course.name}:
 
 Current Grade: ${pctLabel}
 Earned / Possible Points: ${s.earned} / ${s.possible}
-Assignments Turned In (awaiting grade): ${s.turnedIn}
-Missing Assignments: ${s.missing}
+${missingList ? '\nMissing Assignments:\n'+missingList : '\nNo missing assignments — great job!'}
+${turnedInList ? '\nTurned In (awaiting grade):\n'+turnedInList : ''}
 
 Please make sure to complete any missing assignments and reach out if you have any questions.
 
@@ -871,15 +737,16 @@ View your assignments: ${classworkUrl}
 Thank you,
 Mr. Chagoyan`
     );
+
     const gmailUrl = s.email ? `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(s.email)}&su=${subject}&body=${body}` : '';
 
     html += `
       <tr class="${rowClass}">
-        <td><span class="student-name-link" onclick="showStudentDetail(${JSON.stringify(s).replace(/"/g, '&quot;')}, '${esc(course.name)}')">${esc(s.name)}</span></td>
+        <td><span class="student-name-link" onclick='showStudentDetail(${JSON.stringify(s).replace(/'/g,"&#39;")}, "${esc(course.name)}")'>${esc(s.name)}</span></td>
         <td class="grade-cell">${pctLabel}</td>
         <td>${s.earned} / ${s.possible}</td>
-        <td>${s.turnedIn > 0 ? s.turnedIn + ' turned in' : '—'}</td>
-        <td>${s.missing > 0 ? s.missing + ' missing' : '—'}</td>
+        <td>${s.turnedIn > 0 ? s.turnedIn+' turned in' : '—'}</td>
+        <td>${s.missing > 0 ? s.missing+' missing' : '—'}</td>
         <td>${gmailUrl ? `<a href="${gmailUrl}" class="email-btn" target="_blank" rel="noopener">✉️</a>` : ''}</td>
       </tr>`;
   });
@@ -893,16 +760,12 @@ Mr. Chagoyan`
   document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' });
 }
 
-
 function showStudentDetail(s, courseName) {
-  const assignments = s.assignments || [];
-
-  // Sort: missing first, then turned in, then graded
   const order = { missing: 0, notSubmitted: 0, turnedIn: 1, graded: 2 };
-  const sorted = [...assignments].sort((a, b) => order[a.status] - order[b.status]);
+  const sorted = [...(s.assignments||[])].sort((a, b) => order[a.status] - order[b.status]);
 
-  const pct      = s.possible > 0 ? (s.earned / s.possible * 100).toFixed(2) + '%' : 'N/A';
-  const rowClass = s.possible > 0 ? (s.earned / s.possible * 100) <= 60 ? 'row-red' : (s.earned / s.possible * 100) <= 75 ? 'row-yellow' : 'row-green' : '';
+  const pct      = s.possible > 0 ? (s.earned/s.possible*100).toFixed(2)+'%' : 'N/A';
+  const rowClass = s.possible > 0 ? (s.earned/s.possible*100) <= 60 ? 'row-red' : (s.earned/s.possible*100) <= 75 ? 'row-yellow' : 'row-green' : '';
 
   let html = `
     <div class="student-detail-header">
@@ -911,32 +774,22 @@ function showStudentDetail(s, courseName) {
       <div class="student-summary ${rowClass}">
         <span class="grade-cell">${pct}</span>
         <span>${s.earned} / ${s.possible} pts</span>
-        <span>${s.turnedIn > 0 ? s.turnedIn + ' turned in' : ''}</span>
-        <span>${s.missing > 0 ? s.missing + ' missing' : ''}</span>
+        ${s.turnedIn > 0 ? `<span>${s.turnedIn} turned in</span>` : ''}
+        ${s.missing > 0 ? `<span>${s.missing} missing</span>` : ''}
       </div>
     </div>
     <table class="progress-table">
       <thead><tr>
-        <th>Assignment</th>
-        <th>Due</th>
-        <th>Status</th>
-        <th>Points</th>
+        <th>Assignment</th><th>Due</th><th>Status</th><th>Points</th>
       </tr></thead>
       <tbody>`;
 
   sorted.forEach(a => {
     const due = a.dueDate ? fmtDate(a.dueDate) : '—';
     let statusLabel, statusClass;
-    if (a.status === 'graded') {
-      statusLabel = '✅ Graded';
-      statusClass = 'status-graded';
-    } else if (a.status === 'turnedIn') {
-      statusLabel = '📬 Turned In';
-      statusClass = 'status-turnedin';
-    } else {
-      statusLabel = '❌ Missing';
-      statusClass = 'status-missing';
-    }
+    if (a.status === 'graded')   { statusLabel = '✅ Graded';    statusClass = 'status-graded'; }
+    else if (a.status === 'turnedIn') { statusLabel = '📬 Turned In'; statusClass = 'status-turnedin'; }
+    else                         { statusLabel = '❌ Missing';   statusClass = 'status-missing'; }
     const points = a.status === 'graded' ? `${a.earned} / ${a.maxPoints}` : `— / ${a.maxPoints}`;
 
     html += `
@@ -958,19 +811,22 @@ function showStudentDetail(s, courseName) {
 }
 
 function closeStudentDetail() {
-  // Re-run the progress report with cached data
   const cached = window._cachedProgressData;
   if (cached) showProgressReport(cached.studentMap, cached.courseId);
 }
+
+
+/* ------------------------------------------------------------
+   Print View
+   ------------------------------------------------------------ */
 
 function openPrintView(mode) {
   const course = courses.find(c => c.id === selectedId);
   if (!course) return;
   const data = courseData[selectedId];
   if (!data) return;
-  const html = buildPrintHtml(course, data, mode);
   const w = window.open('', '_blank');
-  w.document.write(html);
+  w.document.write(buildPrintHtml(course, data, mode));
   w.document.close();
 }
 
@@ -981,41 +837,28 @@ function buildPrintHtml(course, data, mode) {
 
   merged.forEach(g => {
     body += `<div class="topic-block"><div class="topic-heading">${escHtml(g.topicName)}</div>`;
-
     if (g.assignments.length) {
       body += `<div class="sub-label">Assignments</div><ul>`;
       g.assignments.forEach(a => {
-        if (isSummary) {
-          body += `<li class="assignment-item">
-            <div class="item-title">${escHtml(a.title)}${a.maxPoints ? ' <span class="pts">'+a.maxPoints+' pts</span>' : ''}</div>
-          </li>`;
-        } else {
-          body += `<li class="assignment-item">
-            <div class="item-title">${escHtml(a.title)}${a.maxPoints ? ' <span class="pts">'+a.maxPoints+' pts</span>' : ''}</div>
-            ${a.description ? `<div class="item-desc">${escHtml(a.description)}</div>` : ''}
-            ${printAttachments(a.materials)}
-          </li>`;
-        }
+        body += `<li class="assignment-item">
+          <div class="item-title">${escHtml(a.title)}${a.maxPoints?` <span class="pts">${a.maxPoints} pts</span>`:''}</div>
+          ${!isSummary && a.description ? `<div class="item-desc">${escHtml(a.description)}</div>` : ''}
+          ${!isSummary ? printAttachments(a.materials) : ''}
+        </li>`;
       });
       body += `</ul>`;
     }
-
     if (g.materials.length) {
       body += `<div class="sub-label">Materials</div><ul>`;
       g.materials.forEach(m => {
-        if (isSummary) {
-          body += `<li class="assignment-item"><div class="item-title">${escHtml(m.title)}</div></li>`;
-        } else {
-          body += `<li class="assignment-item">
-            <div class="item-title">${escHtml(m.title)}</div>
-            ${m.description ? `<div class="item-desc">${escHtml(m.description)}</div>` : ''}
-            ${printAttachments(m.materials)}
-          </li>`;
-        }
+        body += `<li class="assignment-item">
+          <div class="item-title">${escHtml(m.title)}</div>
+          ${!isSummary && m.description ? `<div class="item-desc">${escHtml(m.description)}</div>` : ''}
+          ${!isSummary ? printAttachments(m.materials) : ''}
+        </li>`;
       });
       body += `</ul>`;
     }
-
     body += `</div>`;
   });
 
@@ -1023,7 +866,7 @@ function buildPrintHtml(course, data, mode) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>${escHtml(course.name)} — ${isSummary ? 'Summary' : 'Detailed'} Outline</title>
+<title>${escHtml(course.name)} — ${isSummary?'Summary':'Detailed'} Outline</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Georgia, serif; color: #111; max-width: 780px; margin: 0 auto; padding: 2rem; }
@@ -1039,19 +882,14 @@ function buildPrintHtml(course, data, mode) {
   .topic-heading { font-size: 14px; font-weight: 700; color: #fff; background: #F26522; padding: 6px 12px; border-radius: 6px; margin-bottom: 10px; display: inline-block; }
   .sub-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin: 8px 0 6px; }
   ul { list-style: none; padding-left: 0; }
-  li.assignment-item { border: 1px solid #e0e0e0; border-radius: 8px; padding: ${isSummary ? '6px 12px' : '10px 14px'}; margin-bottom: 6px; page-break-inside: avoid; background: #fafafa; }
-  .item-title { font-size: ${isSummary ? '13px' : '14px'}; font-weight: 600; color: #111; }
+  li.assignment-item { border: 1px solid #e0e0e0; border-radius: 8px; padding: ${isSummary?'6px 12px':'10px 14px'}; margin-bottom: 6px; page-break-inside: avoid; background: #fafafa; }
+  .item-title { font-size: ${isSummary?'13px':'14px'}; font-weight: 600; color: #111; }
   .pts { font-size: 12px; font-weight: 400; color: #F26522; margin-left: 6px; }
   .item-desc { font-size: 13px; color: #444; margin-top: 4px; line-height: 1.5; white-space: pre-wrap; }
   .item-attachments { margin-top: 6px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
   .item-attachments a { color: #F26522; text-decoration: none; }
   .footer { margin-top: 3rem; font-size: 11px; color: #aaa; border-top: 0.5px solid #eee; padding-top: 8px; }
-  @media print {
-    body { padding: 1rem; }
-    .topic-heading { background: #F26522 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .item-attachments a { color: #000; }
-    li.assignment-item { background: #fff !important; }
-  }
+  @media print { body { padding: 1rem; } .topic-heading { background: #F26522 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } li.assignment-item { background: #fff !important; } }
 </style>
 </head>
 <body>
@@ -1060,11 +898,11 @@ function buildPrintHtml(course, data, mode) {
     <button class="secondary" onclick="window.close()">Close</button>
   </div>
   <div class="course-header">
-    <span class="mode-label">${isSummary ? 'Summary Outline' : 'Detailed Outline'}</span>
+    <span class="mode-label">${isSummary?'Summary Outline':'Detailed Outline'}</span>
     <h1>${escHtml(course.name)}</h1>
     <div class="course-meta">
-      ${course.section ? escHtml(course.section) : ''}${course.room ? ' &nbsp;·&nbsp; Room '+escHtml(course.room) : ''}
-      ${course.description ? '<br><em>'+escHtml(course.description)+'</em>' : ''}
+      ${course.section?escHtml(course.section):''}${course.room?' &nbsp;·&nbsp; Room '+escHtml(course.room):''}
+      ${course.description?'<br><em>'+escHtml(course.description)+'</em>':''}
     </div>
   </div>
   ${body}
@@ -1081,7 +919,7 @@ function buildPrintHtml(course, data, mode) {
 function downloadSelectedMd() {
   const c = courses.find(x => x.id === selectedId);
   if (!c) return;
-  download(slugify(c.name) + '.md', courseToMd(c, courseData[selectedId]));
+  download(slugify(c.name)+'.md', courseToMd(c, courseData[selectedId]));
 }
 
 async function downloadAllMd() {
@@ -1090,7 +928,7 @@ async function downloadAllMd() {
   document.head.appendChild(s);
   await new Promise(r => s.onload = r);
   const zip = new JSZip();
-  courses.forEach(c => zip.file(slugify(c.name) + '.md', courseToMd(c, courseData[c.id])));
+  courses.forEach(c => zip.file(slugify(c.name)+'.md', courseToMd(c, courseData[c.id])));
   const blob = await zip.generateAsync({ type: 'blob' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -1101,7 +939,7 @@ async function downloadAllMd() {
 function courseToMd(c, data) {
   const lines = [];
   lines.push('---');
-  lines.push(`title: "${(c.name||'Untitled Course').replace(/"/g,'\\"')}"`);
+  lines.push(`title: "${(c.name||'Untitled').replace(/"/g,'\\"')}"`);
   if (c.section)        lines.push(`section: "${c.section}"`);
   if (c.room)           lines.push(`room: "${c.room}"`);
   if (c.courseState)    lines.push(`state: "${c.courseState}"`);
@@ -1114,31 +952,27 @@ function courseToMd(c, data) {
   lines.push('');
 
   if (data) {
-    const merged = mergeByTopic(data.assignments, data.materials, data.topicMap || {});
-    merged.forEach(g => {
-      lines.push('## ' + g.topicName);
-      lines.push('');
+    mergeByTopic(data.assignments, data.materials, data.topicMap||{}).forEach(g => {
+      lines.push('## '+g.topicName); lines.push('');
       if (g.assignments.length) {
-        lines.push('### Assignments');
-        lines.push('');
+        lines.push('### Assignments'); lines.push('');
         g.assignments.forEach(a => {
-          lines.push('#### ' + (a.title || 'Untitled'));
-          if (a.dueDate)       lines.push('- **Due:** ' + fmtDate(a.dueDate));
-          if (a.maxPoints)     lines.push('- **Points:** ' + a.maxPoints);
-          if (a.description)   lines.push('- **Description:** ' + a.description.replace(/\n/g,' '));
-          if (a.alternateLink) lines.push('- **Classroom link:** ' + a.alternateLink);
+          lines.push('#### '+(a.title||'Untitled'));
+          if (a.dueDate)       lines.push('- **Due:** '+fmtDate(a.dueDate));
+          if (a.maxPoints)     lines.push('- **Points:** '+a.maxPoints);
+          if (a.description)   lines.push('- **Description:** '+a.description.replace(/\n/g,' '));
+          if (a.alternateLink) lines.push('- **Classroom link:** '+a.alternateLink);
           const att = attachmentsToMd(a.materials);
           if (att.length) { lines.push('- **Attachments:**'); att.forEach(l => lines.push(l)); }
           lines.push('');
         });
       }
       if (g.materials.length) {
-        lines.push('### Materials');
-        lines.push('');
+        lines.push('### Materials'); lines.push('');
         g.materials.forEach(m => {
-          lines.push('#### ' + (m.title || 'Untitled'));
-          if (m.description)   lines.push('- **Description:** ' + m.description.replace(/\n/g,' '));
-          if (m.alternateLink) lines.push('- **Classroom link:** ' + m.alternateLink);
+          lines.push('#### '+(m.title||'Untitled'));
+          if (m.description)   lines.push('- **Description:** '+m.description.replace(/\n/g,' '));
+          if (m.alternateLink) lines.push('- **Classroom link:** '+m.alternateLink);
           const att = attachmentsToMd(m.materials);
           if (att.length) { lines.push('- **Attachments:**'); att.forEach(l => lines.push(l)); }
           lines.push('');
@@ -1146,69 +980,48 @@ function courseToMd(c, data) {
       }
     });
   }
-
   return lines.join('\n');
 }
 
 
 /* ------------------------------------------------------------
-   Helpers — Grouping, Sorting, Formatting
+   Helpers
    ------------------------------------------------------------ */
 
 function mergeByTopic(assignments, materials, topicMap) {
   const groups = {};
-  assignments.forEach(a => {
-    const tid = a.topicId || '__none__';
-    if (!groups[tid]) groups[tid] = { assignments: [], materials: [] };
-    groups[tid].assignments.push(a);
+  assignments.forEach(a => { const tid = a.topicId||'__none__'; if (!groups[tid]) groups[tid]={assignments:[],materials:[]}; groups[tid].assignments.push(a); });
+  materials.forEach(m => { const tid = m.topicId||'__none__'; if (!groups[tid]) groups[tid]={assignments:[],materials:[]}; groups[tid].materials.push(m); });
+  return Object.keys(groups).map(tid => ({
+    topicId: tid,
+    topicName: tid==='__none__' ? 'No topic' : (topicMap[tid]||'Unknown topic'),
+    assignments: groups[tid].assignments,
+    materials:   groups[tid].materials
+  })).sort((a,b) => {
+    if (a.topicId==='__none__') return 1; if (b.topicId==='__none__') return -1;
+    const aw=/^week\d+/i.test(a.topicName), bw=/^week\d+/i.test(b.topicName);
+    if (!aw&&bw) return -1; if (aw&&!bw) return 1;
+    return a.topicName.localeCompare(b.topicName,undefined,{numeric:true,sensitivity:'base'});
   });
-  materials.forEach(m => {
-    const tid = m.topicId || '__none__';
-    if (!groups[tid]) groups[tid] = { assignments: [], materials: [] };
-    groups[tid].materials.push(m);
-  });
-  return Object.keys(groups)
-    .map(tid => ({
-      topicId:     tid,
-      topicName:   tid === '__none__' ? 'No topic' : (topicMap[tid] || 'Unknown topic'),
-      assignments: groups[tid].assignments,
-      materials:   groups[tid].materials
-    }))
-    .sort((a, b) => {
-      if (a.topicId === '__none__') return 1;
-      if (b.topicId === '__none__') return -1;
-      const aw = /^week\d+/i.test(a.topicName), bw = /^week\d+/i.test(b.topicName);
-      if (!aw && bw) return -1;
-      if (aw && !bw) return 1;
-      return a.topicName.localeCompare(b.topicName, undefined, { numeric: true, sensitivity: 'base' });
-    });
 }
 
 function groupByTopic(items, topicMap) {
   const groups = {};
-  items.forEach(item => {
-    const tid = item.topicId || '__none__';
-    if (!groups[tid]) groups[tid] = [];
-    groups[tid].push(item);
+  items.forEach(item => { const tid=item.topicId||'__none__'; if(!groups[tid]) groups[tid]=[]; groups[tid].push(item); });
+  return Object.keys(groups).map(tid => ({
+    topicId: tid,
+    topicName: tid==='__none__'?'No topic':(topicMap[tid]||'Unknown topic'),
+    items: groups[tid]
+  })).sort((a,b) => {
+    if (a.topicId==='__none__') return 1; if (b.topicId==='__none__') return -1;
+    const aw=/^week\d+/i.test(a.topicName), bw=/^week\d+/i.test(b.topicName);
+    if (!aw&&bw) return -1; if (aw&&!bw) return 1;
+    return a.topicName.localeCompare(b.topicName,undefined,{numeric:true,sensitivity:'base'});
   });
-  return Object.keys(groups)
-    .map(tid => ({
-      topicId:   tid,
-      topicName: tid === '__none__' ? 'No topic' : (topicMap[tid] || 'Unknown topic'),
-      items:     groups[tid]
-    }))
-    .sort((a, b) => {
-      if (a.topicId === '__none__') return 1;
-      if (b.topicId === '__none__') return -1;
-      const aw = /^week\d+/i.test(a.topicName), bw = /^week\d+/i.test(b.topicName);
-      if (!aw && bw) return -1;
-      if (aw && !bw) return 1;
-      return a.topicName.localeCompare(b.topicName, undefined, { numeric: true, sensitivity: 'base' });
-    });
 }
 
 function toTimestamp(item) {
-  if (item.dueDate) { const d = item.dueDate; return new Date(d.year,(d.month||1)-1,d.day||1).getTime(); }
+  if (item.dueDate) { const d=item.dueDate; return new Date(d.year,(d.month||1)-1,d.day||1).getTime(); }
   if (item.scheduledTime) return new Date(item.scheduledTime).getTime();
   if (item.creationTime)  return new Date(item.creationTime).getTime();
   return 0;
@@ -1221,53 +1034,40 @@ function fmtDate(d) {
 
 function esc(s)     { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function download(filename, text) {
-  const a = document.createElement('a');
-  a.href = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(text);
-  a.download = filename; a.click();
-}
-
-function slugify(s) {
-  return String(s||'untitled').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-}
-
-
-/* ------------------------------------------------------------
-   Helpers — Attachments
-   ------------------------------------------------------------ */
+function download(filename, text) { const a=document.createElement('a'); a.href='data:text/markdown;charset=utf-8,'+encodeURIComponent(text); a.download=filename; a.click(); }
+function slugify(s) { return String(s||'untitled').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 
 function renderAttachments(materials) {
-  if (!materials || !materials.length) return '';
+  if (!materials||!materials.length) return '';
   const items = materials.map(mat => {
-    if (mat.driveFile)    { const f = mat.driveFile.driveFile; return `<a href="${f.alternateLink}" target="_blank">📄 ${esc(f.title||'Drive file')}</a>`; }
-    if (mat.youtubeVideo) { const v = mat.youtubeVideo;        return `<a href="${v.alternateLink}" target="_blank">🎬 ${esc(v.title||'YouTube video')}</a>`; }
-    if (mat.link)         { const l = mat.link;                return `<a href="${l.url}" target="_blank">🔗 ${esc(l.title||l.url)}</a>`; }
-    if (mat.form)         { const f = mat.form;                return `<a href="${f.formUrl}" target="_blank">📝 ${esc(f.title||'Form')}</a>`; }
+    if (mat.driveFile)    { const f=mat.driveFile.driveFile; return `<a href="${f.alternateLink}" target="_blank">📄 ${esc(f.title||'Drive file')}</a>`; }
+    if (mat.youtubeVideo) { const v=mat.youtubeVideo;        return `<a href="${v.alternateLink}" target="_blank">🎬 ${esc(v.title||'YouTube video')}</a>`; }
+    if (mat.link)         { const l=mat.link;                return `<a href="${l.url}" target="_blank">🔗 ${esc(l.title||l.url)}</a>`; }
+    if (mat.form)         { const f=mat.form;                return `<a href="${f.formUrl}" target="_blank">📝 ${esc(f.title||'Form')}</a>`; }
     return '';
   }).filter(Boolean);
   return items.length ? `<div class="item-attachments">${items.join(' &nbsp; ')}</div>` : '';
 }
 
 function printAttachments(materials) {
-  if (!materials || !materials.length) return '';
+  if (!materials||!materials.length) return '';
   const items = materials.map(mat => {
-    if (mat.driveFile)    { const f = mat.driveFile.driveFile; return `<a href="${f.alternateLink}">📄 ${escHtml(f.title||'Drive file')}</a>`; }
-    if (mat.youtubeVideo) { const v = mat.youtubeVideo;        return `<a href="${v.alternateLink}">🎬 ${escHtml(v.title||'YouTube video')}</a>`; }
-    if (mat.link)         { const l = mat.link;                return `<a href="${l.url}">🔗 ${escHtml(l.title||l.url)}</a>`; }
-    if (mat.form)         { const f = mat.form;                return `<a href="${f.formUrl}">📝 ${escHtml(f.title||'Form')}</a>`; }
+    if (mat.driveFile)    { const f=mat.driveFile.driveFile; return `<a href="${f.alternateLink}">📄 ${escHtml(f.title||'Drive file')}</a>`; }
+    if (mat.youtubeVideo) { const v=mat.youtubeVideo;        return `<a href="${v.alternateLink}">🎬 ${escHtml(v.title||'YouTube video')}</a>`; }
+    if (mat.link)         { const l=mat.link;                return `<a href="${l.url}">🔗 ${escHtml(l.title||l.url)}</a>`; }
+    if (mat.form)         { const f=mat.form;                return `<a href="${f.formUrl}">📝 ${escHtml(f.title||'Form')}</a>`; }
     return '';
   }).filter(Boolean);
   return items.length ? `<div class="item-attachments">${items.join('')}</div>` : '';
 }
 
 function attachmentsToMd(materials) {
-  if (!materials || !materials.length) return [];
+  if (!materials||!materials.length) return [];
   return materials.map(mat => {
-    if (mat.driveFile)    { const f = mat.driveFile.driveFile; return `  - 📄 [${f.title||'Drive file'}](${f.alternateLink})`; }
-    if (mat.youtubeVideo) { const v = mat.youtubeVideo;        return `  - 🎬 [${v.title||'YouTube video'}](${v.alternateLink})`; }
-    if (mat.link)         { const l = mat.link;                return `  - 🔗 [${l.title||l.url}](${l.url})`; }
-    if (mat.form)         { const f = mat.form;                return `  - 📝 [${f.title||'Form'}](${f.formUrl})`; }
+    if (mat.driveFile)    { const f=mat.driveFile.driveFile; return `  - 📄 [${f.title||'Drive file'}](${f.alternateLink})`; }
+    if (mat.youtubeVideo) { const v=mat.youtubeVideo;        return `  - 🎬 [${v.title||'YouTube video'}](${v.alternateLink})`; }
+    if (mat.link)         { const l=mat.link;                return `  - 🔗 [${l.title||l.url}](${l.url})`; }
+    if (mat.form)         { const f=mat.form;                return `  - 📝 [${f.title||'Form'}](${f.formUrl})`; }
     return null;
   }).filter(Boolean);
 }
