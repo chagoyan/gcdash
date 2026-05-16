@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GCDash — Seating Chart</title>
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <style>
+    /* ── Reset & tokens ──────────────────────────────────────────────────── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #111111;
+      --surface: #1a1a1a;
+      --surface2: #2e2e2e;
+      --border: #2e2e2e;
+      --accent: #F26522;
+      --accent-dim: #C74E0A;
+      --text: #ffffff;
+      --text-muted: #888888;
+      --text-dim: #555555;
+
+      /* grade tiers */
+      --green: #22c55e;
+      --green-bg: rgba(34, 197, 94, 0.12);
+      --yellow: #eab308;
+      --yellow-bg: rgba(234, 179, 8, 0.12);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.12);
+      --gray: #64748b;
+      --gray-bg: rgba(100, 116, 139, 0.10);
+
+      --desk-w: 118px;
+      --desk-h: 76px;
+      --gap: 10px;
+      --radius: 8px;
+      --header-h: 56px;
+      --toolbar-h: 48px;
+      --sidebar-w: 200px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
+    header {
+      height: var(--header-h);
+      min-height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 16px;
+      z-index: 100;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+
+    .header-brand img {
+      height: 26px;
+      width: 26px;
+      object-fit: contain;
+    }
+
+    .header-brand .sep {
+      color: var(--text-dim);
+      margin: 0 2px;
+    }
+
+    .header-brand .page {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+
+    select,
+    input[type="number"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    select:focus,
+    input[type="number"]:focus {
+      border-color: var(--accent);
+    }
+
+    select option {
+      background: var(--surface2);
+    }
+
+    select:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    input[type="number"] {
+      width: 56px;
+      text-align: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 13px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-size: 0.84rem;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #3d7fc4;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-muted);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--surface2);
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border-color: var(--border);
+      color: #ef4444;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: #ef4444;
+    }
+
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .divider-v {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Auth overlay — matches GCDash setup-box ─────────────────────────── */
+    #authOverlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      font-family: sans-serif;
+    }
+
+    #authOverlay.hidden {
+      display: none;
+    }
+
+    .gc-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .gc-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .gc-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .gc-header .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .setup-box {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .setup-box h2 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .token-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .btn-connect {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--text);
+      background: var(--accent);
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: sans-serif;
+    }
+
+    .btn-connect:hover {
+      background: var(--accent-dim);
+    }
+
+    .btn-connect:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ── Toolbar ─────────────────────────────────────────────────────────── */
+    #toolbar {
+      height: var(--toolbar-h);
+      min-height: var(--toolbar-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      z-index: 90;
+    }
+
+    .toolbar-label {
+      font-size: 0.75rem;
+      font-family: 'DM Mono', monospace;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-right: 4px;
+    }
+
+    /* Dropdown wrap */
+    .dd-wrap {
+      position: relative;
+    }
+
+    .dd-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      min-width: 180px;
+      overflow: hidden;
+      padding: 4px 0;
+    }
+
+    .dd-menu.open {
+      display: block;
+    }
+
+    .dd-menu button {
+      display: block;
+      width: 100%;
+      padding: 8px 14px;
+      background: none;
+      border: none;
+      color: var(--text);
+      text-align: left;
+      font-size: 0.85rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .dd-menu button:hover {
+      background: var(--surface);
+    }
+
+    .dd-menu button.danger {
+      color: #ef4444;
+    }
+
+    .dd-menu hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 4px 0;
+    }
+
+    /* ── Legend ──────────────────────────────────────────────────────────── */
+    #legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 16px;
+      height: 36px;
+      min-height: 36px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.75rem;
+    }
+
+    .legend-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+
+    .legend-item {
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+    }
+
+    #legend-meta {
+      margin-left: auto;
+      color: var(--text-dim);
+      font-size: 0.72rem;
+    }
+
+    /* ── Main layout ─────────────────────────────────────────────────────── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: width 0.2s, min-width 0.2s;
+    }
+
+    #sidebar.collapsed {
+      width: 0;
+      min-width: 0;
+      border-right: none;
+    }
+
+    #reopenTab {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: none;
+      border-radius: 0 6px 6px 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      z-index: 20;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    #reopenTab:hover {
+      background: var(--surface2);
+      color: var(--accent);
+    }
+
+    #sidebar.collapsed~#chartArea #reopenTab {
+      display: flex;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .sidebar-header h2 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    #rosterList {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 8px;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    #rosterList::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #rosterList::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #rosterList::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .student-chip {
+      padding: 5px 9px;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: grab;
+      border-left: 3px solid transparent;
+      background: var(--surface2);
+      transition: opacity 0.15s, background 0.15s;
+      user-select: none;
+      line-height: 1.3;
+    }
+
+    .student-chip:active {
+      cursor: grabbing;
+    }
+
+    .student-chip.placed {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .student-chip.tier-green {
+      border-color: var(--green);
+    }
+
+    .student-chip.tier-yellow {
+      border-color: var(--yellow);
+    }
+
+    .student-chip.tier-red {
+      border-color: var(--red);
+    }
+
+    .student-chip.tier-gray {
+      border-color: var(--gray);
+    }
+
+    #rosterHint {
+      padding: 12px;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    /* ── Chart area ──────────────────────────────────────────────────────── */
+    #chartArea {
+      flex: 1;
+      overflow: auto;
+      padding: 24px;
+      position: relative;
+    }
+
+    #chartArea::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    #chartArea::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #chartArea::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    #gridWrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    #grid {
+      display: grid;
+      gap: var(--gap);
+    }
+
+    /* ── Desk cards ──────────────────────────────────────────────────────── */
+    .desk {
+      width: var(--desk-w);
+      height: var(--desk-h);
+      border-radius: var(--radius);
+      border: 1px dashed var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .desk:hover:not(.occupied):not(.is-aisle) {
+      border-color: var(--accent);
+      background: var(--surface2);
+      color: var(--accent);
+    }
+
+    .desk.drag-over {
+      border-color: var(--accent);
+      background: rgba(74, 144, 217, 0.08);
+    }
+
+    .desk.is-aisle {
+      background: transparent;
+      border: 1px dashed var(--border);
+      opacity: 0.3;
+    }
+
+    .desk.is-aisle:hover {
+      opacity: 0.6;
+    }
+
+    .restore-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    /* Occupied desk */
+    .desk.occupied {
+      border: none;
+      border-left: 3px solid transparent;
+      cursor: default;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 6px 8px;
+      gap: 1px;
+      draggable: true;
+    }
+
+    .desk.occupied.tier-green {
+      background: var(--green-bg);
+      border-color: var(--green);
+    }
+
+    .desk.occupied.tier-yellow {
+      background: var(--yellow-bg);
+      border-color: var(--yellow);
+    }
+
+    .desk.occupied.tier-red {
+      background: var(--red-bg);
+      border-color: var(--red);
+    }
+
+    .desk.occupied.tier-gray {
+      background: var(--gray-bg);
+      border-color: var(--gray);
+    }
+
+    .desk.occupied:hover {
+      filter: brightness(1.08);
+      cursor: grab;
+    }
+
+    .desk.occupied:active {
+      cursor: grabbing;
+    }
+
+    .desk.dragging {
+      opacity: 0.3;
+    }
+
+    .desk-remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.3);
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.6rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .desk:hover .desk-remove {
+      opacity: 1;
+    }
+
+    .desk-grade {
+      font-size: 0.7rem;
+      font-family: 'DM Mono', monospace;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .desk-name {
+      font-size: 0.78rem;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
+    .desk-meta-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      margin-top: 2px;
+    }
+
+    .desk-tag {
+      font-size: 0.62rem;
+      font-family: 'DM Mono', monospace;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* ── Resize handles ──────────────────────────────────────────────────── */
+    #resizeOverlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .resize-handle {
+      position: absolute;
+      pointer-events: all;
+      background: transparent;
+      transition: background 0.15s;
+      border-radius: 2px;
+    }
+
+    .col-handle {
+      width: 10px;
+      top: 0;
+      bottom: 0;
+      cursor: col-resize;
+      transform: translateX(-50%);
+    }
+
+    .row-handle {
+      height: 10px;
+      left: 0;
+      right: 0;
+      cursor: row-resize;
+      transform: translateY(-50%);
+    }
+
+    .col-handle:hover,
+    .col-handle.active {
+      background: rgba(74, 144, 217, 0.35);
+    }
+
+    .row-handle:hover,
+    .row-handle.active {
+      background: rgba(74, 144, 217, 0.35);
+    }
+
+    /* ── Student picker modal ────────────────────────────────────────────── */
+    #pickerOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #pickerOverlay.hidden {
+      display: none;
+    }
+
+    #pickerBox {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 280px;
+      max-height: 420px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    }
+
+    #pickerBox h3 {
+      padding: 14px 16px 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    #pickerSearch {
+      margin: 10px 12px 0;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    #pickerSearch:focus {
+      border-color: var(--accent);
+    }
+
+    #pickerList {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 8px;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    #pickerList::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #pickerList::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .picker-item {
+      padding: 7px 10px;
+      border-radius: 5px;
+      font-size: 0.83rem;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      background: var(--surface);
+      transition: background 0.1s;
+    }
+
+    .picker-item:hover {
+      background: var(--border);
+    }
+
+    .picker-item.tier-green {
+      border-color: var(--green);
+    }
+
+    .picker-item.tier-yellow {
+      border-color: var(--yellow);
+    }
+
+    .picker-item.tier-red {
+      border-color: var(--red);
+    }
+
+    .picker-item.tier-gray {
+      border-color: var(--gray);
+    }
+
+    .picker-cancel {
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* ── Settings panel ──────────────────────────────────────────────────── */
+    #settingsOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #settingsOverlay.hidden {
+      display: none;
+    }
+
+    #settingsBox {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 440px;
+      max-height: 80dvh;
+      overflow-y: auto;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    }
+
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--surface2);
+      z-index: 1;
+    }
+
+    .settings-header h2 {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .settings-section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .settings-section:last-child {
+      border-bottom: none;
+    }
+
+    .settings-section h3 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    .field-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+
+    .field-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .field-row label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .field-row input[type="text"],
+    .field-row input[type="number"],
+    .field-row input[type="password"] {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .field-row input:focus {
+      border-color: var(--accent);
+    }
+
+    .threshold-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .aeries-note {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .aeries-disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .meta-field-row {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .meta-field-row .field-key {
+      font-size: 0.75rem;
+      font-family: 'DM Mono', monospace;
+      color: var(--text-dim);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 6px;
+      text-align: center;
+    }
+
+    /* ── Toast ───────────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Loading spinner ─────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Auth overlay ──────────────────────────────────────────────────────── -->
+  <div id="authOverlay">
+    <img src="logo.png" alt="GCDash" style="height:48px;opacity:0.8;" onerror="this.style.display='none'" />
+    <h2>GCDash Seating Chart</h2>
+    <p>Sign in with Google to load your classes and rosters.</p>
+    <div id="gSignInBtn"></div>
+    <p id="authError" style="color:#ef4444;font-size:0.82rem;display:none;"></p>
+  </div>
+
+  <!-- ── Header ────────────────────────────────────────────────────────────── -->
+  <header>
+    <a class="header-brand" href="index.html">
+      <img src="logo.png" alt="GCDash" onerror="this.style.display='none'" />
+      GCDash <span class="sep">/</span><span class="page">Seating</span>
+    </a>
+
+    <div class="header-controls">
+      <select id="courseSelect">
+        <option value="">— Select class —</option>
+      </select>
+
+      <div class="divider-v"></div>
+
+      <label style="font-size:0.82rem;color:var(--text-muted);">Rows</label>
+      <input type="number" id="rowCount" value="5" min="1" max="14" />
+      <label style="font-size:0.82rem;color:var(--text-muted);">Cols</label>
+      <input type="number" id="colCount" value="6" min="1" max="14" />
+      <button class="btn btn-ghost" id="applyGridBtn">Apply</button>
+
+      <div class="divider-v"></div>
+
+      <select id="roomSelect">
+        <option value="">— Room layout —</option>
+      </select>
+      <button class="btn btn-ghost" id="saveRoomBtn">Save Room</button>
+      <button class="btn btn-ghost" id="deleteRoomBtn" title="Delete room layout" style="padding:5px 9px;">✕</button>
+    </div>
+
+    <div class="header-right">
+      <div class="dd-wrap">
+        <button class="btn btn-ghost" id="assignBtn" disabled>Assign ▾</button>
+        <div class="dd-menu" id="assignMenu">
+          <button data-mode="alpha">Alphabetical (Last Name)</button>
+          <button data-mode="random">Random</button>
+          <hr />
+          <button data-mode="reset" class="danger">Reset — Clear All Seats</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="saveBtn" disabled>Save Seating Chart</button>
+      <button class="btn btn-ghost" id="settingsBtn" style="padding:5px 10px;" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- ── Toolbar ────────────────────────────────────────────────────────────── -->
+  <div id="toolbar">
+    <span class="toolbar-label">Layout</span>
+    <button class="btn btn-ghost" id="addRowBtn">+ Row</button>
+    <button class="btn btn-ghost" id="removeRowBtn">− Row</button>
+    <div class="divider-v"></div>
+    <span id="statusText" style="font-size:0.8rem;color:var(--text-dim);">Load a class to begin.</span>
+  </div>
+
+  <!-- ── Legend ────────────────────────────────────────────────────────────── -->
+  <div id="legend">
+    <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>Doing well (≥ 80%)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>At risk (60–79%)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Needs help (&lt; 60%)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--gray)"></span>No grade data</span>
+    <span id="legend-meta"></span>
+  </div>
+
+  <!-- ── Main ──────────────────────────────────────────────────────────────── -->
+  <div id="main">
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <h2>Roster</h2>
+        <button class="btn btn-ghost" id="toggleSidebarBtn" title="Hide roster"
+          style="padding:3px 8px;font-size:0.8rem;">◀</button>
+      </div>
+      <p id="rosterHint">Load a class to see students.</p>
+      <ul id="rosterList"></ul>
+    </div>
+    <div id="chartArea">
+      <button id="reopenTab" title="Show roster"
+        onclick="document.getElementById('toggleSidebarBtn').click()">▶</button>
+      <div id="gridWrapper">
+        <div id="grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Student picker modal ───────────────────────────────────────────────── -->
+  <div id="pickerOverlay" class="hidden">
+    <div id="pickerBox">
+      <h3>Place Student</h3>
+      <input type="text" id="pickerSearch" placeholder="Search…" autocomplete="off" />
+      <ul id="pickerList"></ul>
+      <div class="picker-cancel">
+        <button class="btn btn-ghost" id="pickerCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Settings panel ─────────────────────────────────────────────────────── -->
+  <div id="settingsOverlay" class="hidden">
+    <div id="settingsBox">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button class="btn btn-ghost" id="settingsCloseBtn" style="padding:4px 10px;">✕</button>
+      </div>
+
+      <div class="settings-section">
+        <h3>Grade Thresholds</h3>
+        <div class="threshold-row">
+          <div class="field-row">
+            <label>🟢 Green ≥</label>
+            <input type="number" id="threshGreen" value="80" min="0" max="100" />
+          </div>
+          <div class="field-row">
+            <label>🟡 Yellow ≥</label>
+            <input type="number" id="threshYellow" value="60" min="0" max="100" />
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Default Grid Size</h3>
+        <div class="threshold-row">
+          <div class="field-row">
+            <label>Rows</label>
+            <input type="number" id="defaultRows" value="5" min="1" max="14" />
+          </div>
+          <div class="field-row">
+            <label>Columns</label>
+            <input type="number" id="defaultCols" value="6" min="1" max="14" />
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Student Data Fields</h3>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+          Label the 4 extended data fields. These appear as tags on each seat card.
+          Currently populated manually or via Aeries API when connected.
+        </p>
+        <div class="meta-field-row">
+          <span class="field-key">field1</span>
+          <input type="text" id="metaLabel1" placeholder="e.g. Lang. Fluency" />
+        </div>
+        <div class="meta-field-row">
+          <span class="field-key">field2</span>
+          <input type="text" id="metaLabel2" placeholder="e.g. Program (EL, RSP…)" />
+        </div>
+        <div class="meta-field-row">
+          <span class="field-key">field3</span>
+          <input type="text" id="metaLabel3" placeholder="e.g. Attendance %" />
+        </div>
+        <div class="meta-field-row">
+          <span class="field-key">field4</span>
+          <input type="text" id="metaLabel4" placeholder="e.g. IEP / 504" />
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Aeries API <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400;margin-left:6px;">— Not yet
+            connected</span></h3>
+        <div class="aeries-note">
+          Connect your district's Aeries API to automatically populate extended student data fields (Language Fluency,
+          Program, Attendance, etc.) on seat cards.
+          Requires IT department access to the Aeries API certificate.
+        </div>
+        <div class="aeries-disabled">
+          <div class="field-row">
+            <label>Aeries Server</label>
+            <input type="text" placeholder="your-district.aeries.net" />
+          </div>
+          <div class="field-row">
+            <label>API Certificate</label>
+            <input type="password" placeholder="AERIES-CERT token" />
+          </div>
+          <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:4px;">Connect
+            Aeries</button>
+        </div>
+      </div>
+
+      <div class="settings-section" style="border-bottom:none;">
+        <button class="btn btn-primary" id="saveSettingsBtn" style="width:100%;justify-content:center;">Save
+          Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ──────────────────────────────────────────────────────────────── -->
+  <div id="toast"></div>
+
+  <!-- ── Google Identity Services ──────────────────────────────────────────── -->
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CONFIG & STATE
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const DESK_W = 118;
+    const DESK_H = 76;
+    const GAP = 10;
+    const MIN_SIZE = 16;
+
+    const GC_SCOPES = [
+      'https://www.googleapis.com/auth/classroom.courses.readonly',
+      'https://www.googleapis.com/auth/classroom.rosters.readonly',
+      'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
+      'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly',
+    ].join(' ');
+
+    // Settings (loaded from localStorage)
+    let settings = {
+      clientId: '',
+      threshGreen: 80,
+      threshYellow: 60,
+      defaultRows: 5,
+      defaultCols: 6,
+      metaLabels: { field1: '', field2: '', field3: '', field4: '' },
+    };
+
+    // Runtime state
+    let accessToken = null;
+    let students = [];   // [{ id, firstName, lastName, grade, meta:{field1..4} }]
+    let seats = {};   // { "r-c": studentId | null }
+    let rows = 5;
+    let cols = 6;
+    let colWidths = [];
+    let rowHeights = [];
+    let currentCourseId = null;
+    let isDirty = false;
+    let pickerTargetKey = null;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DOM REFS
+    // ═══════════════════════════════════════════════════════════════════════════
+    const authOverlay = document.getElementById('authOverlay');
+    const courseSelect = document.getElementById('courseSelect');
+    const rowInput = document.getElementById('rowCount');
+    const colInput = document.getElementById('colCount');
+    const applyGridBtn = document.getElementById('applyGridBtn');
+    const roomSelect = document.getElementById('roomSelect');
+    const saveRoomBtn = document.getElementById('saveRoomBtn');
+    const deleteRoomBtn = document.getElementById('deleteRoomBtn');
+    const assignBtn = document.getElementById('assignBtn');
+    const assignMenu = document.getElementById('assignMenu');
+    const saveBtn = document.getElementById('saveBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const removeRowBtn = document.getElementById('removeRowBtn');
+    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    const statusText = document.getElementById('statusText');
+    const sidebar = document.getElementById('sidebar');
+    const rosterList = document.getElementById('rosterList');
+    const rosterHint = document.getElementById('rosterHint');
+    const grid = document.getElementById('grid');
+    const gridWrapper = document.getElementById('gridWrapper');
+    const pickerOverlay = document.getElementById('pickerOverlay');
+    const pickerSearch = document.getElementById('pickerSearch');
+    const pickerList = document.getElementById('pickerList');
+    const pickerCancelBtn = document.getElementById('pickerCancelBtn');
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SETTINGS
+    // ═══════════════════════════════════════════════════════════════════════════
+    function loadSettings() {
+      try {
+        const s = JSON.parse(localStorage.getItem('gcdash-seating-settings') || '{}');
+        settings = { ...settings, ...s };
+        if (s.metaLabels) settings.metaLabels = { ...settings.metaLabels, ...s.metaLabels };
+      } catch { }
+      applySettings();
+    }
+
+    function applySettings() {
+      rows = settings.defaultRows;
+      cols = settings.defaultCols;
+      rowInput.value = rows;
+      colInput.value = cols;
+      updateLegendMeta();
+    }
+
+    function openSettings() {
+      document.getElementById('threshGreen').value = settings.threshGreen;
+      document.getElementById('threshYellow').value = settings.threshYellow;
+      document.getElementById('defaultRows').value = settings.defaultRows;
+      document.getElementById('defaultCols').value = settings.defaultCols;
+      document.getElementById('metaLabel1').value = settings.metaLabels.field1;
+      document.getElementById('metaLabel2').value = settings.metaLabels.field2;
+      document.getElementById('metaLabel3').value = settings.metaLabels.field3;
+      document.getElementById('metaLabel4').value = settings.metaLabels.field4;
+      settingsOverlay.classList.remove('hidden');
+    }
+
+    function saveSettings() {
+      settings.threshGreen = parseInt(document.getElementById('threshGreen').value) || 80;
+      settings.threshYellow = parseInt(document.getElementById('threshYellow').value) || 60;
+      settings.defaultRows = parseInt(document.getElementById('defaultRows').value) || 5;
+      settings.defaultCols = parseInt(document.getElementById('defaultCols').value) || 6;
+      settings.metaLabels = {
+        field1: document.getElementById('metaLabel1').value.trim(),
+        field2: document.getElementById('metaLabel2').value.trim(),
+        field3: document.getElementById('metaLabel3').value.trim(),
+        field4: document.getElementById('metaLabel4').value.trim(),
+      };
+      localStorage.setItem('gcdash-seating-settings', JSON.stringify(settings));
+      settingsOverlay.classList.add('hidden');
+      updateLegendMeta();
+      buildGrid();
+      showToast('Settings saved.');
+    }
+
+    function updateLegendMeta() {
+      const labels = Object.values(settings.metaLabels).filter(Boolean);
+      const el = document.getElementById('legend-meta');
+      el.textContent = labels.length ? 'Tags: ' + labels.join(' · ') : '';
+    }
+
+    settingsBtn.addEventListener('click', openSettings);
+    settingsCloseBtn.addEventListener('click', () => settingsOverlay.classList.add('hidden'));
+    saveSettingsBtn.addEventListener('click', saveSettings);
+    settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) settingsOverlay.classList.add('hidden'); });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AUTH
+    // ═══════════════════════════════════════════════════════════════════════════
+    function getClientId() {
+      // Use CONFIG.clientId from config.js (shared with GCDash) or settings fallback
+      if (typeof CONFIG !== 'undefined' && CONFIG.clientId) return CONFIG.clientId;
+      return settings.clientId || '';
+    }
+
+    function showAuthError(msg) {
+      const el = document.getElementById('authError');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function initGIS() {
+      const clientId = getClientId();
+      if (!clientId) {
+        showAuthError('Client ID not found. Add it to config.js or open ⚙ Settings.');
+        return;
+      }
+      if (!window.google || !window.google.accounts) {
+        showAuthError('Google Identity Services not ready. Please refresh.');
+        return;
+      }
+
+      document.getElementById('connectBtn').disabled = true;
+
+      try {
+        google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: GC_SCOPES,
+          callback: (resp) => {
+            document.getElementById('connectBtn').disabled = false;
+            if (resp.error) { showAuthError('Auth error: ' + resp.error); return; }
+            accessToken = resp.access_token;
+            sessionStorage.setItem('gcdash-access-token', accessToken);
+            authOverlay.classList.add('hidden');
+            initApp();
+          },
+          error_callback: (err) => {
+            document.getElementById('connectBtn').disabled = false;
+            showAuthError('Auth error: ' + (err.message || err.type));
+          }
+        }).requestAccessToken({ prompt: 'select_account' });
+      } catch (e) {
+        document.getElementById('connectBtn').disabled = false;
+        showAuthError('Error: ' + e.message);
+      }
+    }
+
+    // On load — restore token or show auth screen
+    window.addEventListener('load', () => {
+      loadSettings();
+      loadRoomOptions();
+
+      // Check for token handoff from GCDash (localStorage, cleared after use)
+      const handoff = localStorage.getItem('gcdash-token-handoff');
+      if (handoff) {
+        localStorage.removeItem('gcdash-token-handoff');
+        accessToken = handoff;
+        sessionStorage.setItem('gcdash-access-token', accessToken);
+        authOverlay.classList.add('hidden');
+        initApp();
+        return;
+      }
+
+      // Check for token already in sessionStorage (page refresh)
+      const stored = sessionStorage.getItem('gcdash-access-token');
+      if (stored) {
+        accessToken = stored;
+        authOverlay.classList.add('hidden');
+        initApp();
+        return;
+      }
+
+      // Auth screen is shown by default; connectBtn calls initGIS()
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GOOGLE CLASSROOM API
+    // ═══════════════════════════════════════════════════════════════════════════
+    async function gcFetch(path) {
+      const res = await fetch(`https://classroom.googleapis.com${path}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.status === 401) {
+        sessionStorage.removeItem('gcdash-access-token');
+        authOverlay.classList.remove('hidden');
+        throw new Error('Token expired — please sign in again.');
+      }
+      if (!res.ok) throw new Error(`GC API error ${res.status}`);
+      return res.json();
+    }
+
+    async function initApp() {
+      setStatus('<span class="spinner"></span> Loading classes…');
+      try {
+        const data = await gcFetch('/v1/courses?teacherId=me&courseStates=ACTIVE');
+        const courses = data.courses || [];
+        courseSelect.innerHTML = '<option value="">— Select class —</option>';
+        courses.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name + (c.section ? ` · ${c.section}` : '');
+          courseSelect.appendChild(opt);
+        });
+        setStatus(`${courses.length} classes loaded.`);
+      } catch (err) {
+        setStatus('Error: ' + err.message);
+      }
+    }
+
+    // ── Grade cache helpers ───────────────────────────────────────────────────
+    const GRADE_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+    function gradesCacheKey(courseId) { return `gcdash-grades-${courseId}`; }
+
+    function loadCachedGrades(courseId) {
+      try {
+        const raw = localStorage.getItem(gradesCacheKey(courseId));
+        if (!raw) return null;
+        const { ts, grades } = JSON.parse(raw);
+        if (Date.now() - ts > GRADE_CACHE_TTL) return null;
+        return grades;
+      } catch { return null; }
+    }
+
+    function saveCachedGrades(courseId, grades) {
+      try {
+        localStorage.setItem(gradesCacheKey(courseId), JSON.stringify({ ts: Date.now(), grades }));
+      } catch { }
+    }
+
+    // ── Fetch all submissions in parallel ─────────────────────────────────────
+    async function fetchGrades(courseId, allCW) {
+      // Build a maxPoints lookup from coursework
+      const maxPointsMap = {};
+      allCW.forEach(cw => { if (cw.maxPoints) maxPointsMap[cw.id] = cw.maxPoints; });
+
+      // Single wildcard call fetches ALL submissions across ALL assignments at once
+      const submissionsMap = {};
+      let pageToken = '';
+      do {
+        const url = `/v1/courses/${courseId}/courseWork/-/studentSubmissions?pageSize=250` +
+          (pageToken ? `&pageToken=${pageToken}` : '');
+        const data = await gcFetch(url);
+        (data.studentSubmissions || []).forEach(sub => {
+          const maxPoints = maxPointsMap[sub.courseWorkId];
+          if (!maxPoints) return; // ungraded assignment, skip
+          if ((sub.state === 'TURNED_IN' || sub.state === 'RETURNED') && sub.assignedGrade != null) {
+            if (!submissionsMap[sub.userId]) submissionsMap[sub.userId] = [];
+            submissionsMap[sub.userId].push({ earned: sub.assignedGrade, max: maxPoints });
+          }
+        });
+        pageToken = data.nextPageToken || '';
+      } while (pageToken);
+
+      const grades = {};
+      for (const [userId, subs] of Object.entries(submissionsMap)) {
+        const totalEarned = subs.reduce((a, b) => a + b.earned, 0);
+        const totalMax = subs.reduce((a, b) => a + b.max, 0);
+        grades[userId] = totalMax > 0 ? Math.round((totalEarned / totalMax) * 100) : null;
+      }
+      return grades;
+    }
+
+    // ── Apply grades and refresh UI ────────────────────────────────────────────
+    function applyGrades(grades) {
+      students.forEach(s => { s.grade = grades[s.id] ?? null; });
+      buildGrid();
+      renderRoster();
+    }
+
+    async function loadCourse(courseId) {
+      currentCourseId = courseId;
+      seats = {};
+      students = [];
+      setStatus('<span class="spinner"></span> Loading roster…');
+      assignBtn.disabled = true;
+      saveBtn.disabled = true;
+
+      try {
+        // 1. Fetch roster and coursework in parallel
+        const [allStudents, allCW] = await Promise.all([
+          (async () => {
+            let pageToken = '', results = [];
+            do {
+              const url = `/v1/courses/${courseId}/students?pageSize=100` + (pageToken ? `&pageToken=${pageToken}` : '');
+              const data = await gcFetch(url);
+              results = results.concat(data.students || []);
+              pageToken = data.nextPageToken || '';
+            } while (pageToken);
+            return results;
+          })(),
+          (async () => {
+            let cwPage = '', results = [];
+            do {
+              const url = `/v1/courses/${courseId}/courseWork?pageSize=100` + (cwPage ? `&pageToken=${cwPage}` : '');
+              const data = await gcFetch(url);
+              results = results.concat(data.courseWork || []);
+              cwPage = data.nextPageToken || '';
+            } while (cwPage);
+            return results;
+          })(),
+        ]);
+
+        // 2. Build student objects with null grades initially
+        students = allStudents.map(s => {
+          const profile = s.profile || {};
+          const name = profile.name || {};
+          return {
+            id: s.userId,
+            firstName: name.givenName || '',
+            lastName: name.familyName || '',
+            grade: null,
+            meta: { field1: null, field2: null, field3: null, field4: null },
+          };
+        });
+
+        // 3. Restore saved layout
+        roomSelect.value = ''; // always reset room when switching classes
+        deleteRoomBtn.disabled = true;
+        const saved = loadSavedLayout(courseId);
+        if (saved) {
+          // If the saved layout recorded which room was active, restore it
+          if (saved.room) {
+            roomSelect.value = saved.room;
+            deleteRoomBtn.disabled = !roomSelect.value;
+          }
+          colWidths = saved.colWidths || [];
+          rowHeights = saved.rowHeights || [];
+          rows = saved.rows || rows;
+          cols = saved.cols || cols;
+          rowInput.value = rows;
+          colInput.value = cols;
+          seats = saved.seats || {};
+          const validIds = new Set(students.map(s => s.id));
+          for (const k of Object.keys(seats)) {
+            if (seats[k] && !validIds.has(seats[k])) delete seats[k];
+          }
+        } else {
+          colWidths = [];
+          rowHeights = [];
+        }
+
+        // 4. Show roster immediately — teacher can start arranging right away
+        buildGrid();
+        renderRoster();
+        rosterHint.style.display = 'none';
+        assignBtn.disabled = false;
+        saveBtn.disabled = !isDirty;
+        isDirty = false;
+
+        // 5. Load grades — from cache instantly, then refresh in background
+        const cached = loadCachedGrades(courseId);
+        if (cached) {
+          applyGrades(cached);
+          // Silently refresh cache in background
+          fetchGrades(courseId, allCW).then(grades => {
+            saveCachedGrades(courseId, grades);
+            applyGrades(grades);
+          }).catch(() => { });
+        } else {
+          setStatus(`<span class="spinner"></span> ${students.length} students · calculating grades…`);
+          const grades = await fetchGrades(courseId, allCW);
+          saveCachedGrades(courseId, grades);
+          applyGrades(grades);
+        }
+
+      } catch (err) {
+        setStatus('Error: ' + err.message);
+        showToast(err.message);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GRADE HELPERS
+    // ═══════════════════════════════════════════════════════════════════════════
+    function tierClass(student) {
+      if (student.grade === null) return 'tier-gray';
+      if (student.grade >= settings.threshGreen) return 'tier-green';
+      if (student.grade >= settings.threshYellow) return 'tier-yellow';
+      return 'tier-red';
+    }
+
+    function gradeLabel(student) {
+      return student.grade !== null ? student.grade + '%' : '—';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GRID
+    // ═══════════════════════════════════════════════════════════════════════════
+    function buildGrid() {
+      if (colWidths.length !== cols) colWidths = Array(cols).fill(DESK_W);
+      if (rowHeights.length !== rows) rowHeights = Array(rows).fill(DESK_H);
+
+      applyGridTemplate();
+      grid.innerHTML = '';
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const key = `${r}-${c}`;
+          const isAisle = colWidths[c] < MIN_SIZE * 2 || rowHeights[r] < MIN_SIZE * 2;
+          const desk = document.createElement('div');
+          desk.className = 'desk' + (isAisle ? ' is-aisle' : '');
+          desk.dataset.key = key;
+
+          if (isAisle) {
+            const btn = document.createElement('button');
+            btn.className = 'restore-btn';
+            btn.textContent = '+';
+            btn.title = 'Restore desk';
+            btn.addEventListener('click', () => restoreCell(r, c));
+            desk.appendChild(btn);
+          } else {
+            const studentId = seats[key];
+            if (studentId) {
+              const student = students.find(s => s.id === studentId);
+              if (student) setDeskOccupied(desk, student);
+              else setDeskEmpty(desk, key);
+            } else {
+              setDeskEmpty(desk, key);
+            }
+          }
+          grid.appendChild(desk);
+        }
+      }
+      buildResizeHandles();
+    }
+
+    function setDeskEmpty(desk, key) {
+      desk.textContent = '+';
+      desk.addEventListener('click', () => openPicker(key));
+      desk.addEventListener('dragover', e => { e.preventDefault(); desk.classList.add('drag-over'); });
+      desk.addEventListener('dragleave', () => desk.classList.remove('drag-over'));
+      desk.addEventListener('drop', e => {
+        e.preventDefault();
+        desk.classList.remove('drag-over');
+        placeStudent(e.dataTransfer.getData('studentId'), key);
+      });
+    }
+
+    function setDeskOccupied(desk, student) {
+      const tier = tierClass(student);
+      desk.className = `desk occupied ${tier}`;
+      desk.draggable = true;
+
+      // Build meta tags
+      const tags = Object.entries(settings.metaLabels)
+        .filter(([k, label]) => label && student.meta[k])
+        .map(([k]) => `<span class="desk-tag">${student.meta[k]}</span>`)
+        .join('');
+
+      desk.innerHTML = `
+    <button class="desk-remove" title="Remove">✕</button>
+    <div class="desk-grade">${gradeLabel(student)}</div>
+    <div class="desk-name">${student.firstName}<br>${student.lastName}</div>
+    ${tags ? `<div class="desk-meta-tags">${tags}</div>` : ''}
+  `;
+
+      desk.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('studentId', student.id);
+        setTimeout(() => desk.classList.add('dragging'), 0);
+      });
+      desk.addEventListener('dragend', () => desk.classList.remove('dragging'));
+
+      desk.addEventListener('dragover', e => { e.preventDefault(); desk.classList.add('drag-over'); });
+      desk.addEventListener('dragleave', () => desk.classList.remove('drag-over'));
+      desk.addEventListener('drop', e => {
+        e.preventDefault();
+        desk.classList.remove('drag-over');
+        placeStudent(e.dataTransfer.getData('studentId'), desk.dataset.key);
+      });
+
+      desk.querySelector('.desk-remove').addEventListener('click', e => {
+        e.stopPropagation();
+        seats[desk.dataset.key] = null;
+        markDirty();
+        buildGrid();
+        renderRoster();
+      });
+    }
+
+    function applyGridTemplate() {
+      grid.style.gridTemplateColumns = colWidths.map(w => w + 'px').join(' ');
+      grid.style.gridTemplateRows = rowHeights.map(h => h + 'px').join(' ');
+      grid.style.gap = GAP + 'px';
+    }
+
+    function placeStudent(studentId, deskKey) {
+      if (!studentId || !deskKey) return;
+      // Remove from previous seat
+      for (const [k, v] of Object.entries(seats)) {
+        if (v === studentId) seats[k] = null;
+      }
+      seats[deskKey] = studentId;
+      markDirty();
+      buildGrid();
+      renderRoster();
+    }
+
+    function restoreCell(r, c) {
+      if (!confirm('Restore this cell to a full desk?')) return;
+      if (colWidths[c] < MIN_SIZE * 2) colWidths[c] = DESK_W;
+      if (rowHeights[r] < MIN_SIZE * 2) rowHeights[r] = DESK_H;
+      buildGrid();
+    }
+
+    // ── Resize handles ──────────────────────────────────────────────────────────
+    function buildResizeHandles() {
+      const existing = document.getElementById('resizeOverlay');
+      if (existing) existing.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'resizeOverlay';
+
+      let x = 0;
+      for (let c = 0; c < cols - 1; c++) {
+        x += colWidths[c];
+        const h = makeHandle('col-handle', 'left', x + GAP / 2 - 5 + 'px');
+        h.dataset.col = c;
+        addColResize(h);
+        overlay.appendChild(h);
+        x += GAP;
+      }
+      let y = 0;
+      for (let r = 0; r < rows - 1; r++) {
+        y += rowHeights[r];
+        const h = makeHandle('row-handle', 'top', y + GAP / 2 - 5 + 'px');
+        h.dataset.row = r;
+        addRowResize(h);
+        overlay.appendChild(h);
+        y += GAP;
+      }
+      gridWrapper.appendChild(overlay);
+    }
+
+    function makeHandle(cls, side, pos) {
+      const h = document.createElement('div');
+      h.className = 'resize-handle ' + cls;
+      h.style[side] = pos;
+      return h;
+    }
+
+    function repositionHandles() {
+      const overlay = document.getElementById('resizeOverlay');
+      if (!overlay) return;
+      let x = 0;
+      overlay.querySelectorAll('.col-handle').forEach((h, i) => {
+        x += colWidths[i];
+        h.style.left = (x + GAP / 2 - 5) + 'px';
+        x += GAP;
+      });
+      let y = 0;
+      overlay.querySelectorAll('.row-handle').forEach((h, i) => {
+        y += rowHeights[i];
+        h.style.top = (y + GAP / 2 - 5) + 'px';
+        y += GAP;
+      });
+    }
+
+    function updateAisleClasses() {
+      grid.querySelectorAll('.desk').forEach(desk => {
+        const [r, c] = desk.dataset.key.split('-').map(Number);
+        const isAisle = colWidths[c] < MIN_SIZE * 2 || rowHeights[r] < MIN_SIZE * 2;
+        desk.classList.toggle('is-aisle', isAisle);
+        if (isAisle && desk.textContent === '+') desk.textContent = '';
+      });
+    }
+
+    function addColResize(handle) {
+      handle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        handle.classList.add('active');
+        const col = parseInt(handle.dataset.col);
+        const startX = e.clientX, startW = colWidths[col];
+        const move = e => {
+          colWidths[col] = Math.max(MIN_SIZE, startW + (e.clientX - startX));
+          applyGridTemplate();
+          repositionHandles();
+          updateAisleClasses();
+        };
+        const up = () => {
+          handle.classList.remove('active');
+          document.removeEventListener('mousemove', move);
+          document.removeEventListener('mouseup', up);
+          buildGrid();
+          renderRoster();
+        };
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+      });
+    }
+
+    function addRowResize(handle) {
+      handle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        handle.classList.add('active');
+        const r = parseInt(handle.dataset.row);
+        const startY = e.clientY, startH = rowHeights[r];
+        const move = e => {
+          rowHeights[r] = Math.max(MIN_SIZE, startH + (e.clientY - startY));
+          applyGridTemplate();
+          repositionHandles();
+          updateAisleClasses();
+        };
+        const up = () => {
+          handle.classList.remove('active');
+          document.removeEventListener('mousemove', move);
+          document.removeEventListener('mouseup', up);
+          buildGrid();
+          renderRoster();
+        };
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ROSTER SIDEBAR
+    // ═══════════════════════════════════════════════════════════════════════════
+    function renderRoster() {
+      rosterList.innerHTML = '';
+      const placedIds = new Set(Object.values(seats).filter(Boolean));
+      const sorted = [...students].sort((a, b) =>
+        a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
+      );
+      sorted.forEach(student => {
+        const placed = placedIds.has(student.id);
+        const li = document.createElement('li');
+        const chip = document.createElement('div');
+        chip.className = `student-chip ${tierClass(student)}${placed ? ' placed' : ''}`;
+        chip.textContent = `${student.lastName}, ${student.firstName}`;
+        chip.title = gradeLabel(student);
+        if (!placed) {
+          chip.draggable = true;
+          chip.addEventListener('dragstart', e => e.dataTransfer.setData('studentId', student.id));
+        }
+        li.appendChild(chip);
+        rosterList.appendChild(li);
+      });
+      // Keep status count current
+      if (students.length) {
+        const unseated = students.length - placedIds.size;
+        setStatus(`${students.length} students · ${unseated} unseated`);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STUDENT PICKER MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    function openPicker(deskKey) {
+      if (!students.length) return;
+      pickerTargetKey = deskKey;
+      const placedIds = new Set(Object.values(seats).filter(Boolean));
+      const unplaced = students
+        .filter(s => !placedIds.has(s.id))
+        .sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
+
+      if (!unplaced.length) { showToast('All students are seated.'); return; }
+
+      renderPickerList(unplaced);
+      pickerSearch.value = '';
+      pickerOverlay.classList.remove('hidden');
+      pickerSearch.focus();
+    }
+
+    function renderPickerList(list) {
+      pickerList.innerHTML = '';
+      list.forEach(student => {
+        const li = document.createElement('li');
+        li.className = `picker-item ${tierClass(student)}`;
+        li.textContent = `${student.lastName}, ${student.firstName}  ${gradeLabel(student)}`;
+        li.addEventListener('click', () => {
+          placeStudent(student.id, pickerTargetKey);
+          pickerOverlay.classList.add('hidden');
+        });
+        pickerList.appendChild(li);
+      });
+    }
+
+    pickerSearch.addEventListener('input', () => {
+      const q = pickerSearch.value.toLowerCase();
+      const placedIds = new Set(Object.values(seats).filter(Boolean));
+      const filtered = students
+        .filter(s => !placedIds.has(s.id))
+        .filter(s => `${s.lastName} ${s.firstName}`.toLowerCase().includes(q))
+        .sort((a, b) => a.lastName.localeCompare(b.lastName));
+      renderPickerList(filtered);
+    });
+
+    pickerCancelBtn.addEventListener('click', () => pickerOverlay.classList.add('hidden'));
+    pickerOverlay.addEventListener('click', e => { if (e.target === pickerOverlay) pickerOverlay.classList.add('hidden'); });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ASSIGN SEATS
+    // ═══════════════════════════════════════════════════════════════════════════
+    assignMenu.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        assignMenu.classList.remove('open');
+        doAssign(btn.dataset.mode);
+      });
+    });
+
+    function doAssign(mode) {
+      if (mode === 'reset') {
+        if (!confirm('Remove all students from the chart?')) return;
+        seats = {};
+        markDirty();
+        buildGrid();
+        renderRoster();
+        return;
+      }
+      const placedIds = new Set(Object.values(seats).filter(Boolean));
+      let unplaced = students.filter(s => !placedIds.has(s.id));
+      if (mode === 'alpha') {
+        unplaced.sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
+      } else {
+        for (let i = unplaced.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [unplaced[i], unplaced[j]] = [unplaced[j], unplaced[i]];
+        }
+      }
+      const available = [];
+      grid.querySelectorAll('.desk:not(.is-aisle)').forEach(d => {
+        if (!seats[d.dataset.key]) available.push(d.dataset.key);
+      });
+      unplaced.forEach((s, i) => {
+        if (i < available.length) seats[available[i]] = s.id;
+      });
+      markDirty();
+      buildGrid();
+      renderRoster();
+    }
+
+    assignBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      assignMenu.classList.toggle('open');
+    });
+    document.addEventListener('click', () => assignMenu.classList.remove('open'));
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ADD / REMOVE ROW
+    // ═══════════════════════════════════════════════════════════════════════════
+    addRowBtn.addEventListener('click', () => {
+      rows++;
+      rowInput.value = rows;
+      rowHeights.push(DESK_H);
+      markDirty();
+      buildGrid();
+      renderRoster();
+    });
+
+    removeRowBtn.addEventListener('click', () => {
+      if (rows <= 1) return;
+      // Check if last row has seated students
+      const lastR = rows - 1;
+      for (let c = 0; c < cols; c++) {
+        const key = `${lastR}-${c}`;
+        if (seats[key]) {
+          showToast('Move or unassign seated students first.');
+          return;
+        }
+      }
+      rows--;
+      rowInput.value = rows;
+      rowHeights.pop();
+      markDirty();
+      buildGrid();
+      renderRoster();
+    });
+
+    applyGridBtn.addEventListener('click', () => {
+      const newRows = parseInt(rowInput.value) || 5;
+      const newCols = parseInt(colInput.value) || 6;
+      // Check seats that would be lost
+      let orphans = false;
+      for (const [key, id] of Object.entries(seats)) {
+        if (!id) continue;
+        const [r, c] = key.split('-').map(Number);
+        if (r >= newRows || c >= newCols) { orphans = true; break; }
+      }
+      if (orphans && !confirm('Students outside the new grid will be unassigned. Continue?')) return;
+      rows = newRows; cols = newCols;
+      colWidths = [];
+      rowHeights = [];
+      // Prune out-of-bounds seats
+      for (const [key, id] of Object.entries(seats)) {
+        const [r, c] = key.split('-').map(Number);
+        if (r >= rows || c >= cols) delete seats[key];
+      }
+      markDirty();
+      buildGrid();
+      renderRoster();
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ROOM LAYOUTS
+    // ═══════════════════════════════════════════════════════════════════════════
+    function loadRoomOptions(selectName = null) {
+      const rooms = getRooms();
+      const prev = selectName ?? roomSelect.value;
+      roomSelect.innerHTML = '<option value="">— Room layout —</option>';
+      Object.keys(rooms).sort().forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        roomSelect.appendChild(opt);
+      });
+      if (prev) roomSelect.value = prev;
+      deleteRoomBtn.disabled = !roomSelect.value;
+    }
+
+    function getRooms() {
+      try { return JSON.parse(localStorage.getItem('gcdash-seating-rooms') || '{}'); }
+      catch { return {}; }
+    }
+    function setRooms(data) {
+      localStorage.setItem('gcdash-seating-rooms', JSON.stringify(data));
+    }
+
+    roomSelect.addEventListener('change', () => {
+      const name = roomSelect.value;
+      deleteRoomBtn.disabled = !name;
+      if (!name) return;
+      const rooms = getRooms();
+      const layout = rooms[name];
+      if (!layout) return;
+      colWidths = layout.colWidths || Array(layout.cols).fill(DESK_W);
+      rowHeights = layout.rowHeights || Array(layout.rows).fill(DESK_H);
+      for (const key of Object.keys(seats)) {
+        const [r, c] = key.split('-').map(Number);
+        if (r >= layout.rows || c >= layout.cols) delete seats[key];
+      }
+      rows = layout.rows; cols = layout.cols;
+      rowInput.value = rows; colInput.value = cols;
+      buildGrid(); renderRoster();
+      showToast(`Room layout "${name}" loaded.`);
+    });
+
+    saveRoomBtn.addEventListener('click', () => {
+      const name = prompt('Room layout name:');
+      if (!name) return;
+      const rooms = getRooms();
+      rooms[name] = { rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights] };
+      setRooms(rooms);
+      loadRoomOptions(name);
+      showToast(`Room "${name}" saved.`);
+    });
+
+    deleteRoomBtn.addEventListener('click', () => {
+      const name = roomSelect.value;
+      if (!name || !confirm(`Delete room layout "${name}"?`)) return;
+      const rooms = getRooms();
+      delete rooms[name];
+      setRooms(rooms);
+      loadRoomOptions('');
+      showToast(`Room "${name}" deleted.`);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SAVE / LOAD LAYOUT
+    // ═══════════════════════════════════════════════════════════════════════════
+    function markDirty() {
+      isDirty = true;
+      saveBtn.disabled = false;
+    }
+
+    function saveKey(courseId) { return `gcdash-seating-${courseId}`; }
+
+    function loadSavedLayout(courseId) {
+      try { return JSON.parse(localStorage.getItem(saveKey(courseId)) || 'null'); }
+      catch { return null; }
+    }
+
+    saveBtn.addEventListener('click', () => {
+      if (!currentCourseId) return;
+      const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '' };
+      localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
+      isDirty = false;
+      saveBtn.disabled = true;
+      showToast('Seating chart saved.');
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SIDEBAR TOGGLE
+    // ═══════════════════════════════════════════════════════════════════════════
+    toggleSidebarBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      toggleSidebarBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // COURSE SELECT
+    // ═══════════════════════════════════════════════════════════════════════════
+    courseSelect.addEventListener('change', () => {
+      if (courseSelect.value) loadCourse(courseSelect.value);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HELPERS
+    // ═══════════════════════════════════════════════════════════════════════════
+    function setStatus(html) { statusText.innerHTML = html; }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+  </script>
+</body>
+
+</html>

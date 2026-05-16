@@ -71,6 +71,8 @@ async function handleToken(resp) {
     return;
   }
   accessToken = resp.access_token;
+  // Store token so seating.html can pick it up without re-authenticating
+  localStorage.setItem('gcdash-token-handoff', accessToken);
   setStatus('auth-status', 'Signed in! Fetching courses…', 'info');
   await fetchCourses();
 }
