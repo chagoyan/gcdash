@@ -874,6 +874,68 @@
       justify-content: flex-end;
     }
 
+    /* ── Print modal ─────────────────────────────────────────────────────── */
+    #printOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #printOverlay.hidden {
+      display: none;
+    }
+
+    #printBox {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 400px;
+      max-height: 80dvh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    }
+
+    .print-class-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.84rem;
+      transition: background 0.1s;
+    }
+
+    .print-class-row:hover {
+      background: var(--border);
+    }
+
+    .print-class-row input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    .print-class-name {
+      flex: 1;
+    }
+
+    .print-cache-badge {
+      font-size: 0.7rem;
+      font-family: 'DM Mono', monospace;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--green);
+    }
+
     /* ── Settings panel ──────────────────────────────────────────────────── */
     #settingsOverlay {
       position: fixed;
@@ -1104,6 +1166,7 @@
           <button data-mode="reset" class="danger">Reset — Clear All Seats</button>
         </div>
       </div>
+      <button class="btn btn-ghost" id="printBtn">Print</button>
       <button class="btn btn-primary" id="saveBtn" disabled>Save Seating Chart</button>
       <button class="btn btn-ghost" id="settingsBtn" style="padding:5px 10px;" title="Settings">⚙</button>
     </div>
@@ -1120,9 +1183,9 @@
 
   <!-- ── Legend ────────────────────────────────────────────────────────────── -->
   <div id="legend">
-    <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>Doing well (≥ 80%)</span>
-    <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>At risk (60–79%)</span>
-    <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Needs help (&lt; 60%)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>On track (&gt; 75%)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>Watch (61–75%)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>At risk (≤ 60%)</span>
     <span class="legend-item"><span class="legend-dot" style="background:var(--gray)"></span>No grade data</span>
     <span id="legend-meta"></span>
   </div>
@@ -1159,6 +1222,27 @@
     </div>
   </div>
 
+  <!-- ── Print modal ─────────────────────────────────────────────────────────── -->
+  <div id="printOverlay" class="hidden">
+    <div id="printBox">
+      <div class="settings-header">
+        <h2>Print Seating Charts</h2>
+        <button class="btn btn-ghost" id="printCloseBtn" style="padding:4px 10px;">✕</button>
+      </div>
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;">Select classes to print. Cached classes
+          print instantly; others will load first.</p>
+        <div id="printClassList" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;">
+        </div>
+      </div>
+      <div style="padding:14px 20px;display:flex;gap:8px;justify-content:flex-end;align-items:center;">
+        <span id="printStatus" style="font-size:0.8rem;color:var(--text-muted);margin-right:auto;"></span>
+        <button class="btn btn-ghost" id="printSelectAllBtn">Select All</button>
+        <button class="btn btn-primary" id="printGoBtn">Print</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Settings panel ─────────────────────────────────────────────────────── -->
   <div id="settingsOverlay" class="hidden">
     <div id="settingsBox">
@@ -1169,16 +1253,10 @@
 
       <div class="settings-section">
         <h3>Grade Thresholds</h3>
-        <div class="threshold-row">
-          <div class="field-row">
-            <label>🟢 Green ≥</label>
-            <input type="number" id="threshGreen" value="80" min="0" max="100" />
-          </div>
-          <div class="field-row">
-            <label>🟡 Yellow ≥</label>
-            <input type="number" id="threshYellow" value="60" min="0" max="100" />
-          </div>
-        </div>
+        <p style="font-size:0.78rem;color:var(--text-muted);line-height:1.5;">
+          Thresholds match the Monitor Students view in GCDash:<br>
+          🟢 On track &gt; 75% &nbsp;·&nbsp; 🟡 Watch 61–75% &nbsp;·&nbsp; 🔴 At risk ≤ 60%
+        </p>
       </div>
 
       <div class="settings-section">
@@ -1273,8 +1351,6 @@
     // Settings (loaded from localStorage)
     let settings = {
       clientId: '',
-      threshGreen: 80,
-      threshYellow: 60,
       defaultRows: 5,
       defaultCols: 6,
       metaLabels: { field1: '', field2: '', field3: '', field4: '' },
@@ -1345,8 +1421,6 @@
     }
 
     function openSettings() {
-      document.getElementById('threshGreen').value = settings.threshGreen;
-      document.getElementById('threshYellow').value = settings.threshYellow;
       document.getElementById('defaultRows').value = settings.defaultRows;
       document.getElementById('defaultCols').value = settings.defaultCols;
       document.getElementById('metaLabel1').value = settings.metaLabels.field1;
@@ -1357,8 +1431,6 @@
     }
 
     function saveSettings() {
-      settings.threshGreen = parseInt(document.getElementById('threshGreen').value) || 80;
-      settings.threshYellow = parseInt(document.getElementById('threshYellow').value) || 60;
       settings.defaultRows = parseInt(document.getElementById('defaultRows').value) || 5;
       settings.defaultCols = parseInt(document.getElementById('defaultCols').value) || 6;
       settings.metaLabels = {
@@ -1610,11 +1682,6 @@
         deleteRoomBtn.disabled = true;
         const saved = loadSavedLayout(courseId);
         if (saved) {
-          // If the saved layout recorded which room was active, restore it
-          if (saved.room) {
-            roomSelect.value = saved.room;
-            deleteRoomBtn.disabled = !roomSelect.value;
-          }
           colWidths = saved.colWidths || [];
           rowHeights = saved.rowHeights || [];
           rows = saved.rows || rows;
@@ -1625,6 +1692,25 @@
           const validIds = new Set(students.map(s => s.id));
           for (const k of Object.keys(seats)) {
             if (seats[k] && !validIds.has(seats[k])) delete seats[k];
+          }
+
+          // Restore room — try saved.room first, then match by dimensions
+          let restoredRoom = saved.room || '';
+          if (!restoredRoom) {
+            // Try to find a room whose colWidths/rowHeights match the saved layout
+            const rooms = getRooms();
+            for (const [name, layout] of Object.entries(rooms)) {
+              if (layout.rows === saved.rows && layout.cols === saved.cols &&
+                JSON.stringify(layout.colWidths) === JSON.stringify(saved.colWidths) &&
+                JSON.stringify(layout.rowHeights) === JSON.stringify(saved.rowHeights)) {
+                restoredRoom = name;
+                break;
+              }
+            }
+          }
+          if (restoredRoom) {
+            roomSelect.value = restoredRoom;
+            deleteRoomBtn.disabled = !roomSelect.value;
           }
         } else {
           colWidths = [];
@@ -1666,9 +1752,9 @@
     // ═══════════════════════════════════════════════════════════════════════════
     function tierClass(student) {
       if (student.grade === null) return 'tier-gray';
-      if (student.grade >= settings.threshGreen) return 'tier-green';
-      if (student.grade >= settings.threshYellow) return 'tier-yellow';
-      return 'tier-red';
+      if (student.grade > 75) return 'tier-green';  // On track  > 75%
+      if (student.grade > 60) return 'tier-yellow'; // Watch     61–75%
+      return 'tier-red';                             // At risk   ≤ 60%
     }
 
     function gradeLabel(student) {
@@ -2187,6 +2273,330 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // HELPERS
     // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PRINT
+    // ═══════════════════════════════════════════════════════════════════════════
+    const printOverlay = document.getElementById('printOverlay');
+    const printClassList = document.getElementById('printClassList');
+    const printStatus = document.getElementById('printStatus');
+    const printGoBtn = document.getElementById('printGoBtn');
+    const printSelectAllBtn = document.getElementById('printSelectAllBtn');
+
+    document.getElementById('printBtn').addEventListener('click', openPrintModal);
+    document.getElementById('printCloseBtn').addEventListener('click', () => printOverlay.classList.add('hidden'));
+    printOverlay.addEventListener('click', e => { if (e.target === printOverlay) printOverlay.classList.add('hidden'); });
+
+    function openPrintModal() {
+      printClassList.innerHTML = '';
+      printStatus.textContent = '';
+
+      // Get all courses from the dropdown
+      const options = [...courseSelect.options].filter(o => o.value);
+      if (!options.length) { showToast('Load your classes first.'); return; }
+
+      options.forEach(opt => {
+        const courseId = opt.value;
+        const cached = !!loadCachedGrades(courseId);
+        const hasSaved = !!loadSavedLayout(courseId);
+
+        const row = document.createElement('label');
+        row.className = 'print-class-row';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = courseId;
+        // Pre-check if this class has a saved layout
+        cb.checked = hasSaved;
+
+        const name = document.createElement('span');
+        name.className = 'print-class-name';
+        name.textContent = opt.textContent;
+
+        row.appendChild(cb);
+        row.appendChild(name);
+
+        if (cached) {
+          const badge = document.createElement('span');
+          badge.className = 'print-cache-badge';
+          badge.textContent = 'cached';
+          row.appendChild(badge);
+        }
+
+        printClassList.appendChild(row);
+      });
+
+      printOverlay.classList.remove('hidden');
+    }
+
+    printSelectAllBtn.addEventListener('click', () => {
+      const checkboxes = printClassList.querySelectorAll('input[type="checkbox"]');
+      const allChecked = [...checkboxes].every(cb => cb.checked);
+      checkboxes.forEach(cb => cb.checked = !allChecked);
+      printSelectAllBtn.textContent = allChecked ? 'Select All' : 'Deselect All';
+    });
+
+    printGoBtn.addEventListener('click', async () => {
+      const selected = [...printClassList.querySelectorAll('input[type="checkbox"]:checked')]
+        .map(cb => cb.value);
+      if (!selected.length) { showToast('Select at least one class.'); return; }
+
+      printGoBtn.disabled = true;
+      printStatus.innerHTML = '<span class="spinner"></span> Preparing…';
+
+      const pages = [];
+
+      for (const courseId of selected) {
+        const courseName = courseSelect.querySelector(`option[value="${courseId}"]`)?.textContent || courseId;
+        printStatus.innerHTML = `<span class="spinner"></span> Loading ${courseName}…`;
+
+        try {
+          // 1. Get roster — reuse current if active, else fetch
+          let courseStudents = (courseId === currentCourseId) ? [...students] : [];
+          if (!courseStudents.length) {
+            let pageToken = '', allStu = [];
+            do {
+              const url = `/v1/courses/${courseId}/students?pageSize=100` + (pageToken ? `&pageToken=${pageToken}` : '');
+              const data = await gcFetch(url);
+              allStu = allStu.concat(data.students || []);
+              pageToken = data.nextPageToken || '';
+            } while (pageToken);
+            courseStudents = allStu.map(s => {
+              const name = (s.profile || {}).name || {};
+              return { id: s.userId, firstName: name.givenName || '', lastName: name.familyName || '', grade: null, meta: {} };
+            });
+          }
+
+          // 2. Always get grades — cache first, then fetch if needed
+          let grades = loadCachedGrades(courseId);
+          if (!grades) {
+            if (courseId === currentCourseId && students.some(s => s.grade !== null)) {
+              // Use already-computed grades for current class
+              grades = {};
+              students.forEach(s => { if (s.grade !== null) grades[s.id] = s.grade; });
+            } else {
+              // Fetch coursework then all submissions via wildcard
+              printStatus.innerHTML = `<span class="spinner"></span> Fetching grades for ${courseName}…`;
+              let cwPage = '', allCW = [];
+              do {
+                const url = `/v1/courses/${courseId}/courseWork?pageSize=100` + (cwPage ? `&pageToken=${cwPage}` : '');
+                const data = await gcFetch(url);
+                allCW = allCW.concat(data.courseWork || []);
+                cwPage = data.nextPageToken || '';
+              } while (cwPage);
+              grades = await fetchGrades(courseId, allCW);
+              saveCachedGrades(courseId, grades);
+            }
+          }
+          courseStudents.forEach(s => { s.grade = grades[s.id] ?? null; });
+
+          // 3. Get saved layout — preserve exact col/row sizes including aisles
+          const saved = loadSavedLayout(courseId);
+          const courseSeats = saved?.seats || {};
+          const courseRows = saved?.rows || settings.defaultRows;
+          const courseCols = saved?.cols || settings.defaultCols;
+          // Keep exact saved widths/heights — aisles are small, desks are their saved size
+          // We'll normalize desk sizes in openPrintWindow, preserving aisle positions
+          const courseColW = saved?.colWidths || Array(courseCols).fill(DESK_W);
+          const courseRowH = saved?.rowHeights || Array(courseRows).fill(DESK_H);
+
+          pages.push({
+            name: courseName,
+            students: courseStudents,
+            seats: courseSeats,
+            rows: courseRows,
+            cols: courseCols,
+            colWidths: courseColW,
+            rowHeights: courseRowH,
+          });
+        } catch (err) {
+          showToast(`Error loading ${courseName}: ${err.message}`);
+        }
+      }
+
+      printGoBtn.disabled = false;
+      printStatus.textContent = '';
+      printOverlay.classList.add('hidden');
+
+      if (pages.length) openPrintWindow(pages);
+    });
+
+    function tierColor(grade) {
+      if (grade === null) return { bg: '#f0f0f0', border: '#ccc' };
+      if (grade > 75) return { bg: '#dcfce7', border: '#22c55e' };
+      if (grade > 60) return { bg: '#fef9c3', border: '#eab308' };
+      return { bg: '#fee2e2', border: '#ef4444' };
+    }
+
+    function openPrintWindow(pages) {
+      const date = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+
+      let pagesHtml = '';
+      pages.forEach((page, idx) => {
+        const { name, students: stu, seats, rows, cols, colWidths, rowHeights } = page;
+
+        // Aisle threshold matches interactive view exactly: MIN_SIZE * 2 = 32px
+        const aisleColThresh = MIN_SIZE * 2;
+        const aisleRowThresh = MIN_SIZE * 2;
+
+        // Always render the full saved layout — empty desks are part of the room
+        const effectiveRows = rows;
+
+        const colTpl = colWidths.map(w => w < aisleColThresh ? '24px' : '1fr').join(' ');
+        const rowTpl = rowHeights.slice(0, effectiveRows).map(h => h < aisleRowThresh ? '24px' : '1fr').join(' ');
+
+        let gridCells = '';
+        for (let r = 0; r < effectiveRows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const key = `${r}-${c}`;
+            const isColAisle = colWidths[c] < aisleColThresh;
+            const isRowAisle = rowHeights[r] < aisleRowThresh;
+            const isAisle = isColAisle || isRowAisle;
+
+            if (isAisle) {
+              // Visible aisle — dashed border and label
+              const label = isColAisle && !isRowAisle ? '<span style="writing-mode:vertical-rl;font-size:7px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;">aisle</span>' : '';
+              gridCells += `<div style="width:100%;height:100%;background:rgba(0,0,0,0.03);
+            border-left:1px dashed #ccc;border-right:1px dashed #ccc;
+            display:flex;align-items:center;justify-content:center;">${label}</div>`;
+            } else {
+              const studentId = seats[key];
+              const student = studentId ? stu.find(s => s.id === studentId) : null;
+              if (student) {
+                const { bg, border } = tierColor(student.grade);
+                gridCells += `<div class="desk occ" style="background:${bg};border-left:3px solid ${border};">
+              <div class="dname">${student.firstName}<br>${student.lastName}</div>
+            </div>`;
+              } else {
+                gridCells += `<div class="desk empty"></div>`;
+              }
+            }
+          }
+        }
+
+        pagesHtml += `
+      <div class="page${idx > 0 ? ' page-break' : ''}">
+        <div class="page-header">
+          <div>
+            <div class="mode-label">Seating Chart</div>
+            <h1>${name}</h1>
+          </div>
+          <div class="page-meta">${date}</div>
+        </div>
+        <div class="grid-wrap">
+          <div class="grid" style="grid-template-columns:${colTpl};grid-template-rows:${rowTpl};">
+            ${gridCells}
+          </div>
+        </div>
+        <div class="legend-row">
+          <span class="leg leg-green">On track (&gt;75%)</span>
+          <span class="leg leg-yellow">Watch (61–75%)</span>
+          <span class="leg leg-red">At risk (&#x2264;60%)</span>
+          <span class="leg leg-gray">No data</span>
+        </div>
+        <div class="footer">GCDash &middot; ${date}</div>
+      </div>`;
+      });
+
+      const w = window.open('', '_blank');
+      w.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Seating Charts</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; color: #111; background: #fff; }
+
+  /* ── Screen toolbar ── */
+  .no-print { padding: 0.75rem 1.5rem; background: #f9f9f9; border-bottom: 1px solid #ddd;
+    display: flex; gap: 10px; align-items: center; }
+  button { padding: 7px 18px; font-size: 13px; background: #F26522; color: #fff;
+    border: none; border-radius: 6px; cursor: pointer; }
+  button.sec { background: #fff; color: #333; border: 1px solid #ccc; }
+
+  /* ── Page ── */
+  .page {
+    width: 100vw; height: 100vh;
+    padding: 0.7cm 0.9cm 0.5cm;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .page-break { page-break-before: always; }
+
+  /* ── Header ── */
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 2px solid #111; padding-bottom: 0.4rem; margin-bottom: 0.5rem; flex-shrink: 0; }
+  .mode-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #F26522; margin-bottom: 2px; }
+  h1 { font-size: 18px; font-weight: 700; }
+  .page-meta { font-size: 11px; color: #777; }
+
+  /* ── Grid ── */
+  .grid-wrap { flex: 1; display: flex; min-height: 0; padding: 4px 0; }
+  .grid {
+    display: grid;
+    gap: 5px;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── Desk cards ── */
+  .desk {
+    border-radius: 5px;
+    min-width: 0; min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 4px 5px;
+  }
+  .desk.empty { border: 1px dashed #ccc; background: #fff; }
+  .desk.occ   { }
+  .dname {
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #111;
+    word-break: break-word;
+  }
+
+  /* ── Legend ── */
+  .legend-row { display: flex; gap: 14px; justify-content: center;
+    padding: 0.3rem 0 0.15rem; flex-shrink: 0; }
+  .leg { font-size: 10px; display: flex; align-items: center; gap: 4px; }
+  .leg::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .leg-green::before  { background: #22c55e; }
+  .leg-yellow::before { background: #eab308; }
+  .leg-red::before    { background: #ef4444; }
+  .leg-gray::before   { background: #ccc; }
+
+  /* ── Footer ── */
+  .footer { font-size: 9px; color: #aaa; text-align: right;
+    border-top: 0.5px solid #eee; padding-top: 3px; flex-shrink: 0; }
+
+  /* ── Print ── */
+  @media print {
+    .no-print { display: none !important; }
+    @page { size: landscape; margin: 0.6cm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { width: 100%; height: 100vh; }
+  }
+</style>
+</head>
+<body>
+  <div class="no-print">
+    <button onclick="window.print()">Print</button>
+    <button class="sec" onclick="window.close()">Close</button>
+    <span style="font-size:12px;color:#777;margin-left:8px;">${pages.length} class${pages.length > 1 ? 'es' : ''} &middot; Landscape &middot; ${date}</span>
+  </div>
+  ${pagesHtml}
+</body>
+</html>`);
+      w.document.close();
+    }
+
+
+
     function setStatus(html) { statusText.innerHTML = html; }
 
     function showToast(msg) {
