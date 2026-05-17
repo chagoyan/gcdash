@@ -2730,6 +2730,11 @@
       sessionStorage.removeItem('gcdash-access-token');
       localStorage.removeItem('gcdash-token-handoff');
       localStorage.removeItem('gcdash-return-token');
+      // Clear any previous error message and reset button
+      const errEl = document.getElementById('authError');
+      if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+      const btn = document.getElementById('connectBtn');
+      if (btn) { btn.disabled = false; btn.style.display = ''; }
       authOverlay.classList.remove('hidden');
     }
 
