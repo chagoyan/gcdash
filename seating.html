@@ -1359,6 +1359,7 @@
       'https://www.googleapis.com/auth/classroom.rosters.readonly',
       'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
       'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly',
+      'https://www.googleapis.com/auth/classroom.profile.emails',
     ].join(' ');
 
     // Settings (loaded from localStorage)
@@ -1688,6 +1689,7 @@
             id: s.userId,
             firstName: name.givenName || '',
             lastName: name.familyName || '',
+            email: profile.emailAddress || '',
             grade: null,
             meta: { field1: null, field2: null, field3: null, field4: null },
           };
@@ -1841,10 +1843,15 @@
         .map(([k]) => `<span class="desk-tag">${student.meta[k]}</span>`)
         .join('');
 
+      const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      const nameHtml = (student.email && !isMobile)
+        ? `<a href="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(student.email)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;cursor:pointer;">${student.firstName}<br>${student.lastName}</a>`
+        : `${student.firstName}<br>${student.lastName}`;
+
       desk.innerHTML = `
     <button class="desk-remove" title="Remove">✕</button>
     <div class="desk-grade">${gradeLabel(student)}</div>
-    <div class="desk-name">${student.firstName}<br>${student.lastName}</div>
+    <div class="desk-name">${nameHtml}</div>
     ${tags ? `<div class="desk-meta-tags">${tags}</div>` : ''}
   `;
 
