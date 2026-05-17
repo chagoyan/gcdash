@@ -2044,11 +2044,15 @@
 
     function placeStudent(studentId, deskKey) {
       if (!studentId || !deskKey) return;
-      // Remove from previous seat
+      // Find the student's current seat
+      let fromKey = null;
       for (const [k, v] of Object.entries(seats)) {
-        if (v === studentId) seats[k] = null;
+        if (v === studentId) { fromKey = k; break; }
       }
+      // Swap — if destination is occupied, move that student to the source seat
+      const occupantId = seats[deskKey] || null;
       seats[deskKey] = studentId;
+      if (fromKey) seats[fromKey] = occupantId; // swap occupant back
       markDirty();
       buildGrid();
       renderRoster();
