@@ -100,6 +100,9 @@ function resetApp() {
 	document.getElementById('setup-section').style.display = 'block';
 	document.getElementById('connect-btn').disabled = false;
 	document.getElementById('auth-status').style.display = 'none';
+	document.getElementById('signout-btn').style.display = 'none';
+	localStorage.removeItem('gcdash-token-handoff');
+	localStorage.removeItem('gcdash-return-token');
 }
 
 /* ------------------------------------------------------------
@@ -651,6 +654,7 @@ function toggleOwned() {
 function renderCourses() {
 	document.getElementById('setup-section').style.display = 'none';
 	document.getElementById('courses-section').style.display = 'block';
+	document.getElementById('signout-btn').style.display = 'block';
 
 	const filtered = showOwnedOnly
 		? courses.filter((c) => c.teacherFolder)

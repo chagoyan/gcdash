@@ -1182,6 +1182,8 @@
       <button class="btn btn-ghost" id="printBtn">Print</button>
       <button class="btn btn-primary" id="saveBtn" disabled>Save Seating Chart</button>
       <button class="btn btn-ghost" id="settingsBtn" style="padding:5px 10px;" title="Settings">⚙</button>
+      <a href="#" onclick="signOutSeating(); return false;"
+        style="font-size:13px;color:var(--text-dim);text-decoration:none;margin-left:4px;">Sign out</a>
     </div>
   </header>
 
@@ -2752,6 +2754,15 @@
     }
 
 
+
+    function signOutSeating() {
+      if (accessToken && window.google) google.accounts.oauth2.revoke(accessToken);
+      accessToken = null;
+      sessionStorage.removeItem('gcdash-access-token');
+      localStorage.removeItem('gcdash-token-handoff');
+      localStorage.removeItem('gcdash-return-token');
+      authOverlay.classList.remove('hidden');
+    }
 
     function goHome() {
       if (accessToken) localStorage.setItem('gcdash-return-token', accessToken);
