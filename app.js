@@ -659,16 +659,17 @@ function renderCourses() {
 	const filtered = showOwnedOnly
 		? courses.filter((c) => c.teacherFolder)
 		: courses;
-	const groups = { ACTIVE: [], ARCHIVED: [], DECLINED: [], OTHER: [] };
+	// Exclude DECLINED courses — nothing useful to do with them
+	const groups = { ACTIVE: [], ARCHIVED: [], OTHER: [] };
 	filtered.forEach((c) => {
 		const s = c.courseState || 'OTHER';
+		if (s === 'DECLINED') return; // skip declined
 		(groups[s] || groups.OTHER).push(c);
 	});
 
 	const tabDefs = [
 		{ key: 'ACTIVE', label: 'Active' },
 		{ key: 'ARCHIVED', label: 'Archived' },
-		{ key: 'DECLINED', label: 'Declined' },
 		{ key: 'OTHER', label: 'Other' },
 	].filter((t) => groups[t.key].length > 0);
 
@@ -743,6 +744,12 @@ function selectCourse(id) {
 	});
 	document.getElementById('fetch-btn').disabled = false;
 	document.getElementById('monitor-btn').disabled = false;
+	// Only show Seating Chart button for ACTIVE courses
+	const course = courses.find((c) => c.id === id);
+	const seatingBtn = document.getElementById('seating-btn');
+	if (seatingBtn)
+		seatingBtn.style.display =
+			course && course.courseState === 'ACTIVE' ? '' : 'none';
 }
 
 /* ------------------------------------------------------------
