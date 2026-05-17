@@ -1141,13 +1141,18 @@
   </div>
 
   <!-- ── Header ────────────────────────────────────────────────────────────── -->
-  <header>
-    <a class="header-brand" href="#" onclick="goHome(); return false;">
-      <img src="logo.png" alt="GCDash" onerror="this.style.display='none'" />
-      GCDash <span class="sep">/</span><span class="page">Seating</span>
-    </a>
-
-    <div class="header-controls">
+  <header style="height:auto;min-height:auto;flex-direction:column;align-items:stretch;padding:0;">
+    <!-- Row 1: Brand + Sign out -->
+    <div style="display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);">
+      <a class="header-brand" href="#" onclick="goHome(); return false;">
+        <img src="logo.png" alt="GCDash" onerror="this.style.display='none'" />
+        GCDash <span class="sep">/</span><span class="page">Seating</span>
+      </a>
+      <a href="#" onclick="signOutSeating(); return false;"
+        style="margin-left:auto;font-size:13px;color:var(--text-muted);text-decoration:none;">Sign out</a>
+    </div>
+    <!-- Row 2: Controls -->
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 16px;flex-wrap:wrap;">
       <select id="courseSelect">
         <option value="">— Select class —</option>
       </select>
@@ -1167,9 +1172,9 @@
       </select>
       <button class="btn btn-ghost" id="saveRoomBtn">Save Room</button>
       <button class="btn btn-ghost" id="deleteRoomBtn" title="Delete room layout" style="padding:5px 9px;">✕</button>
-    </div>
 
-    <div class="header-right">
+      <div class="divider-v"></div>
+
       <div class="dd-wrap">
         <button class="btn btn-ghost" id="assignBtn" disabled>Assign ▾</button>
         <div class="dd-menu" id="assignMenu">
@@ -1182,17 +1187,11 @@
       <button class="btn btn-ghost" id="printBtn">Print</button>
       <button class="btn btn-primary" id="saveBtn" disabled>Save Seating Chart</button>
       <button class="btn btn-ghost" id="settingsBtn" style="padding:5px 10px;" title="Settings">⚙</button>
-      <a href="#" onclick="signOutSeating(); return false;"
-        style="font-size:13px;color:var(--text-muted);text-decoration:none;margin-left:4px;">Sign out</a>
     </div>
   </header>
 
   <!-- ── Toolbar ────────────────────────────────────────────────────────────── -->
   <div id="toolbar">
-    <span class="toolbar-label">Layout</span>
-    <button class="btn btn-ghost" id="addRowBtn">+ Row</button>
-    <button class="btn btn-ghost" id="removeRowBtn">− Row</button>
-    <div class="divider-v"></div>
     <span id="statusText" style="font-size:0.8rem;color:var(--text-dim);">Load a class to begin.</span>
   </div>
 
@@ -1399,8 +1398,6 @@
     const assignMenu = document.getElementById('assignMenu');
     const saveBtn = document.getElementById('saveBtn');
     const settingsBtn = document.getElementById('settingsBtn');
-    const addRowBtn = document.getElementById('addRowBtn');
-    const removeRowBtn = document.getElementById('removeRowBtn');
     const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
     const statusText = document.getElementById('statusText');
     const sidebar = document.getElementById('sidebar');
@@ -2140,34 +2137,6 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // ADD / REMOVE ROW
     // ═══════════════════════════════════════════════════════════════════════════
-    addRowBtn.addEventListener('click', () => {
-      rows++;
-      rowInput.value = rows;
-      rowHeights.push(DESK_H);
-      markDirty();
-      buildGrid();
-      renderRoster();
-    });
-
-    removeRowBtn.addEventListener('click', () => {
-      if (rows <= 1) return;
-      // Check if last row has seated students
-      const lastR = rows - 1;
-      for (let c = 0; c < cols; c++) {
-        const key = `${lastR}-${c}`;
-        if (seats[key]) {
-          showToast('Move or unassign seated students first.');
-          return;
-        }
-      }
-      rows--;
-      rowInput.value = rows;
-      rowHeights.pop();
-      markDirty();
-      buildGrid();
-      renderRoster();
-    });
-
     applyGridBtn.addEventListener('click', () => {
       const newRows = parseInt(rowInput.value) || 5;
       const newCols = parseInt(colInput.value) || 6;
