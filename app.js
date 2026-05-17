@@ -2,6 +2,7 @@
    GCDash — App Logic
    ============================================================ */
 
+const IS_TOUCH = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 /* ------------------------------------------------------------
    State
    ------------------------------------------------------------ */
@@ -1045,7 +1046,7 @@ Mr. Chagoyan`,
         <td>${s.earned} / ${s.possible}</td>
         <td>${s.turnedIn > 0 ? s.turnedIn + ' turned in' : '—'}</td>
         <td>${s.missing > 0 ? s.missing + ' missing' : '—'}</td>
-        <td>${gmailUrl ? `<a href="${gmailUrl}" class="email-btn" target="_blank" rel="noopener">✉️</a>` : ''}</td>
+        <td>${gmailUrl && !IS_TOUCH ? `<a href="${gmailUrl}" class="email-btn" target="_blank" rel="noopener">✉️</a>` : ''}</td>
       </tr>`;
 	});
 
@@ -1101,7 +1102,7 @@ function showStudentDetail(s, courseName) {
 	let html = `
     <div class="student-detail-header">
       <span class="detail-back-btn" onclick="closeStudentDetail()">← Back to roster</span>
-      <h2>${esc(s.name)} ${gmailUrl ? `<a href="${gmailUrl}" class="email-btn" target="_blank" rel="noopener">✉️</a>` : ''}</h2>
+      <h2>${esc(s.name)} ${gmailUrl && !IS_TOUCH ? `<a href="${gmailUrl}" class="email-btn" target="_blank" rel="noopener">✉️</a>` : ''}</h2>
       <div class="student-summary ${rowClass}">
         <span class="grade-cell">${pct}</span>
         <span>${s.earned} / ${s.possible} pts</span>

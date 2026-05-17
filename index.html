@@ -34,21 +34,6 @@
       }
     }
   </style>
-  <script>
-    // Hide email buttons on touch devices — mailto: doesn't work well on mobile/tablet
-    window.addEventListener('DOMContentLoaded', () => {
-      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-        document.querySelectorAll('.email-btn').forEach(el => el.style.display = 'none');
-      }
-    });
-    // Also observe for dynamically added email buttons
-    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-      const observer = new MutationObserver(() => {
-        document.querySelectorAll('.email-btn').forEach(el => el.style.display = 'none');
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-    }
-  </script>
 </head>
 
 <body>
