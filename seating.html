@@ -2764,6 +2764,7 @@
 
         const colTpl = colWidths.map(w => w < aisleColThresh ? '24px' : w + 'fr').join(' ');
         const rowTpl = rowHeights.slice(0, effectiveRows).map(h => h < aisleRowThresh ? '24px' : h + 'fr').join(' ');
+        console.log('Print colTpl:', colTpl);
 
         let gridCells = '';
         for (let r = 0; r < effectiveRows; r++) {
