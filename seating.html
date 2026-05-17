@@ -2889,23 +2889,22 @@
     const LONG_PRESS_MS = 500;
 
     function addTabletTapHandler(desk, key) {
-      const studentId = () => seats[key];
+      const isOccupied = () => !!seats[key];
 
-      // Long press to SELECT an occupied desk
       desk.addEventListener('touchstart', e => {
-        if (!studentId()) return; // only long-press occupied desks
+        // Only start long press timer for occupied desks
+        if (!isOccupied()) return;
         longPressTimer = setTimeout(() => {
-          // Vibrate if available
           if (navigator.vibrate) navigator.vibrate(40);
-          // If something already selected, treat this as destination
+          // If something already selected, treat as destination
           if (selectedDeskKey && selectedDeskKey !== key) {
             triggerConfirm(key);
             return;
           }
           // Select this desk
-          clearTabletSelection();
-          selectedDeskKey = key;
+          selectedDeskKey = null;
           desk.classList.add('selected');
+          selectedDeskKey = key;
         }, LONG_PRESS_MS);
       }, { passive: true });
 
@@ -2915,13 +2914,20 @@
         longPressTimer = null;
       }, { passive: true });
 
-      // Short tap on a desk when something is already selected → move there
       desk.addEventListener('touchend', e => {
         if (longPressTimer) {
+          // Short tap — cancelled long press
           clearTimeout(longPressTimer);
           longPressTimer = null;
-          // Short tap — if something selected, this is the destination
+          // If something selected, this desk is the destination (occupied or empty)
           if (selectedDeskKey && selectedDeskKey !== key) {
+            e.preventDefault();
+            triggerConfirm(key);
+          }
+        } else {
+          // Long press already fired — if occupied and nothing selected yet, already handled
+          // If empty desk tapped with selection active, handle it
+          if (selectedDeskKey && selectedDeskKey !== key && !isOccupied()) {
             e.preventDefault();
             triggerConfirm(key);
           }
@@ -2932,14 +2938,24 @@
     function triggerConfirm(destKey) {
       const fromStudent = students.find(s => s.id === seats[selectedDeskKey]);
       if (!fromStudent) { clearTabletSelection(); return; }
-      const toStudent = seats[destKey] ? students.find(s => s.id === seats[destKey]) : null;
+      const toStudentId = seats[destKey] || null;
+      const toStudent = toStudentId ? students.find(s => s.id === toStudentId) : null;
       const msg = toStudent
         ? `Swap ${fromStudent.firstName} ${fromStudent.lastName} and ${toStudent.firstName} ${toStudent.lastName}?`
         : `Move ${fromStudent.firstName} ${fromStudent.lastName} here?`;
 
+      const fromKey = selectedDeskKey;
+
       showTapConfirm(msg, () => {
-        placeStudent(seats[selectedDeskKey], destKey);
-        clearTabletSelection();
+        // Proper swap — store both IDs first, then assign atomically
+        const fromId = seats[fromKey];
+        const toId = seats[destKey] !== undefined ? seats[destKey] : null;
+        seats[fromKey] = toId || null;
+        seats[destKey] = fromId;
+        selectedDeskKey = null; // clear before rebuild so no stale reference
+        isDirty = true;
+        buildGrid();
+        renderRoster();
         // Auto-save
         if (currentCourseId) {
           const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '' };
