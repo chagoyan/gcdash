@@ -15,6 +15,25 @@
 
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css">
+  <style>
+    .gcdash-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ccc;
+      border-top-color: #F26522;
+      border-radius: 50%;
+      animation: gcdash-spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes gcdash-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -73,7 +92,7 @@
         <button class="btn btn-primary" id="fetch-btn" onclick="fetchSelected()" disabled>Fetch assignments &amp;
           materials</button>
         <button class="btn btn-primary" id="dl-all-btn" onclick="downloadAllMd()">Download all as .md</button>
-        <a class="btn" href="seating.html" style="text-decoration:none;">🪑 Seating Chart</a>
+        <a class="btn" href="seating.html" style="text-decoration:none;">Seating Chart</a>
         <button class="btn" onclick="resetApp()">Disconnect</button>
       </div>
       <div class="status" id="fetch-status"></div>

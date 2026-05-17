@@ -532,7 +532,7 @@
     }
 
     .student-chip.tier-gray {
-      border-color: var(--gray);
+      border-color: var(--accent);
     }
 
     #rosterHint {
@@ -651,8 +651,8 @@
     }
 
     .desk.occupied.tier-gray {
-      background: var(--gray-bg);
-      border-color: var(--gray);
+      background: var(--surface2);
+      border-color: var(--accent);
     }
 
     .desk.occupied:hover {
@@ -864,7 +864,7 @@
     }
 
     .picker-item.tier-gray {
-      border-color: var(--gray);
+      border-color: var(--accent);
     }
 
     .picker-cancel {
@@ -1118,18 +1118,31 @@
 
 <body>
 
-  <!-- ── Auth overlay ──────────────────────────────────────────────────────── -->
+  <!-- ── Auth overlay — matches GCDash login screen ────────────────────────── -->
   <div id="authOverlay">
-    <img src="logo.png" alt="GCDash" style="height:48px;opacity:0.8;" onerror="this.style.display='none'" />
-    <h2>GCDash Seating Chart</h2>
-    <p>Sign in with Google to load your classes and rosters.</p>
-    <div id="gSignInBtn"></div>
-    <p id="authError" style="color:#ef4444;font-size:0.82rem;display:none;"></p>
+    <div class="gc-header">
+      <img src="logo.png" alt="CHS Technology Pathway" class="gc-logo" onerror="this.style.display='none'" />
+      <div>
+        <h1>GCDash</h1>
+        <p class="subtitle">Seating Chart</p>
+      </div>
+    </div>
+    <div class="setup-box">
+      <h2>Google Classroom Seating Chart</h2>
+      <p style="font-size:13px;color:#888;margin-bottom:1.25rem;">Connect your Google account to load your class rosters
+        and build seating arrangements.</p>
+      <button class="btn-connect" id="connectBtn" onclick="initGIS()">Connect with Google</button>
+      <div class="token-note">Read-only access — your data never leaves your browser.</div>
+      <div id="authError" style="font-size:13px;color:#ef4444;margin-top:10px;display:none;"></div>
+    </div>
+    <div style="margin-top:1.5rem;">
+      <a href="index.html" style="font-size:13px;color:#888;text-decoration:none;">← Back to GCDash</a>
+    </div>
   </div>
 
   <!-- ── Header ────────────────────────────────────────────────────────────── -->
   <header>
-    <a class="header-brand" href="index.html">
+    <a class="header-brand" href="#" onclick="goHome(); return false;">
       <img src="logo.png" alt="GCDash" onerror="this.style.display='none'" />
       GCDash <span class="sep">/</span><span class="page">Seating</span>
     </a>
@@ -1443,6 +1456,7 @@
       settingsOverlay.classList.add('hidden');
       updateLegendMeta();
       buildGrid();
+      debouncedSyncToDrive();
       showToast('Settings saved.');
     }
 
@@ -1554,6 +1568,8 @@
 
     async function initApp() {
       setStatus('<span class="spinner"></span> Loading classes…');
+      // Start Drive sync in background — don't block UI
+      initDriveSync().catch(() => { });
       try {
         const data = await gcFetch('/v1/courses?teacherId=me&courseStates=ACTIVE');
         const courses = data.courses || [];
@@ -2190,6 +2206,7 @@
     }
     function setRooms(data) {
       localStorage.setItem('gcdash-seating-rooms', JSON.stringify(data));
+      debouncedSyncToDrive();
     }
 
     roomSelect.addEventListener('change', () => {
@@ -2252,8 +2269,140 @@
       localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
       isDirty = false;
       saveBtn.disabled = true;
+      debouncedSyncToDrive();
       showToast('Seating chart saved.');
     });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DRIVE SYNC
+    // ═══════════════════════════════════════════════════════════════════════════
+    const DRIVE_FOLDER_NAME = '.gcdash-config';
+    const DRIVE_FILE_NAME = 'settings.json';
+    let driveFolderId = null, driveFileId = null, syncTimeout = null;
+
+    async function initDriveSync() {
+      try {
+        driveFolderId = await findOrCreateFolder();
+        const file = await findSettingsFile();
+        if (file) {
+          driveFileId = file.id;
+          const s = await downloadDriveSettings(file.id);
+          if (s) mergeDriveSettings(s);
+        } else {
+          await syncToDrive();
+        }
+        console.log('Seating Drive sync ready ✓');
+      } catch (e) {
+        console.log('Drive sync unavailable:', e.message);
+      }
+    }
+
+    async function findOrCreateFolder() {
+      const q = encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const d = await r.json();
+      if (d.files && d.files.length > 0) return d.files[0].id;
+      const c = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }),
+      });
+      return (await c.json()).id;
+    }
+
+    async function findSettingsFile() {
+      if (!driveFolderId) return null;
+      const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and '${driveFolderId}' in parents and trashed=false`);
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const d = await r.json();
+      return d.files && d.files.length > 0 ? d.files[0] : null;
+    }
+
+    async function downloadDriveSettings(fileId) {
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      try { return await r.json(); } catch { return null; }
+    }
+
+    function mergeDriveSettings(s) {
+      // Seating layouts
+      if (s.seatingLayouts) {
+        Object.entries(s.seatingLayouts).forEach(([id, layout]) => {
+          // Only overwrite if Drive version is newer or local doesn't exist
+          const local = localStorage.getItem(saveKey(id));
+          if (!local) localStorage.setItem(saveKey(id), JSON.stringify(layout));
+        });
+      }
+      // Room layouts
+      if (s.roomLayouts) {
+        const localRooms = getRooms();
+        const merged = { ...s.roomLayouts, ...localRooms }; // local wins on conflict
+        localStorage.setItem('gcdash-seating-rooms', JSON.stringify(merged));
+        loadRoomOptions();
+      }
+      // Meta labels
+      if (s.seatingMetaLabels) {
+        const existing = JSON.parse(localStorage.getItem('gcdash-seating-settings') || '{}');
+        if (!existing.metaLabels) {
+          existing.metaLabels = s.seatingMetaLabels;
+          localStorage.setItem('gcdash-seating-settings', JSON.stringify(existing));
+        }
+      }
+    }
+
+    function collectDriveSettings() {
+      const seatingLayouts = {}, roomLayouts = getRooms();
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('gcdash-seating-') &&
+          !key.includes('rooms') && !key.includes('settings') && !key.includes('grades')) {
+          try { seatingLayouts[key.replace('gcdash-seating-', '')] = JSON.parse(localStorage.getItem(key)); } catch { }
+        }
+      }
+      let seatingMetaLabels = {};
+      try {
+        const s = JSON.parse(localStorage.getItem('gcdash-seating-settings') || '{}');
+        seatingMetaLabels = s.metaLabels || {};
+      } catch { }
+      return { seatingLayouts, roomLayouts, seatingMetaLabels };
+    }
+
+    function debouncedSyncToDrive() {
+      clearTimeout(syncTimeout);
+      syncTimeout = setTimeout(syncToDrive, 1500);
+    }
+
+    async function syncToDrive() {
+      if (!accessToken || !driveFolderId) return;
+      // Merge with existing Drive data so we don't overwrite course colors/order from app.js
+      let existing = {};
+      if (driveFileId) {
+        try { existing = await downloadDriveSettings(driveFileId) || {}; } catch { }
+      }
+      const merged = { ...existing, ...collectDriveSettings(), updatedAt: new Date().toISOString() };
+      const body = JSON.stringify(merged, null, 2);
+      try {
+        if (driveFileId) {
+          await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body,
+          });
+        } else {
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify({ name: DRIVE_FILE_NAME, parents: [driveFolderId] })], { type: 'application/json' }));
+          form.append('file', new Blob([body], { type: 'application/json' }));
+          const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}` },
+            body: form,
+          });
+          driveFileId = (await r.json()).id;
+        }
+        console.log('Seating synced to Drive ✓');
+      } catch (e) {
+        console.log('Drive sync failed:', e.message);
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // SIDEBAR TOGGLE
@@ -2596,6 +2745,11 @@
     }
 
 
+
+    function goHome() {
+      if (accessToken) localStorage.setItem('gcdash-return-token', accessToken);
+      window.location.href = 'index.html';
+    }
 
     function setStatus(html) { statusText.innerHTML = html; }
 
