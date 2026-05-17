@@ -747,9 +747,17 @@ function selectCourse(id) {
 	// Only show Seating Chart button for ACTIVE courses
 	const course = courses.find((c) => c.id === id);
 	const seatingBtn = document.getElementById('seating-btn');
-	if (seatingBtn)
-		seatingBtn.style.display =
-			course && course.courseState === 'ACTIVE' ? '' : 'none';
+	if (seatingBtn) {
+		if (course && course.courseState === 'ACTIVE') {
+			seatingBtn.style.display = '';
+			seatingBtn.onclick = () => {
+				localStorage.setItem('gcdash-seating-course', id);
+			};
+		} else {
+			seatingBtn.style.display = 'none';
+			seatingBtn.onclick = null;
+		}
+	}
 }
 
 /* ------------------------------------------------------------

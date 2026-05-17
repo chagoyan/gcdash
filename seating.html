@@ -1730,6 +1730,16 @@
           courseSelect.appendChild(opt);
         });
         setStatus(`${courses.length} classes loaded.`);
+
+        // Auto-select course if passed from GCDash
+        const handoffCourse = localStorage.getItem('gcdash-seating-course');
+        if (handoffCourse) {
+          localStorage.removeItem('gcdash-seating-course');
+          if (courses.find(c => c.id === handoffCourse)) {
+            courseSelect.value = handoffCourse;
+            loadCourse(handoffCourse);
+          }
+        }
       } catch (err) {
         setStatus('Error: ' + err.message);
       }
@@ -2914,6 +2924,7 @@
       sessionStorage.removeItem('gcdash-access-token');
       localStorage.removeItem('gcdash-token-handoff');
       localStorage.removeItem('gcdash-return-token');
+      localStorage.removeItem('gcdash-seating-course');
       window.location.href = 'index.html';
     }
 
