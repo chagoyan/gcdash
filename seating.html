@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=1200" />
   <title>GCDash — Seating Chart</title>
   <link rel="icon" type="image/png" href="logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1113,6 +1113,36 @@
         transform: rotate(360deg);
       }
     }
+
+    /* ── Mobile / touch — view-only mode ────────────────────────────────── */
+    body.is-touch #applyGridBtn,
+    body.is-touch #saveRoomBtn,
+    body.is-touch #deleteRoomBtn,
+    body.is-touch #assignBtn,
+    body.is-touch #saveBtn,
+    body.is-touch #settingsBtn,
+    body.is-touch #printBtn,
+    body.is-touch .desk-remove,
+    body.is-touch #resizeOverlay,
+    body.is-touch .restore-btn {
+      display: none !important;
+    }
+
+    body.is-touch .desk.occupied {
+      cursor: default;
+    }
+
+    body.is-touch .desk.occupied:hover {
+      filter: none;
+      cursor: default;
+    }
+
+    body.is-touch #rowCount,
+    body.is-touch #colCount,
+    body.is-touch label[for] {
+      pointer-events: none;
+      opacity: 0.5;
+    }
   </style>
 </head>
 
@@ -1354,6 +1384,8 @@
     const DESK_H = 76;
     const GAP = 10;
     const MIN_SIZE = 16;
+    const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (IS_TOUCH) document.body.classList.add('is-touch');
 
     const GC_SCOPES = [
       'https://www.googleapis.com/auth/classroom.courses.readonly',
@@ -1821,6 +1853,7 @@
 
     function setDeskEmpty(desk, key) {
       desk.textContent = '+';
+      if (IS_TOUCH) return; // view-only on touch
       desk.addEventListener('click', () => openPicker(key));
       desk.addEventListener('dragover', e => { e.preventDefault(); desk.classList.add('drag-over'); });
       desk.addEventListener('dragleave', () => desk.classList.remove('drag-over'));
@@ -1834,7 +1867,7 @@
     function setDeskOccupied(desk, student) {
       const tier = tierClass(student);
       desk.className = `desk occupied ${tier}`;
-      desk.draggable = true;
+      desk.draggable = !IS_TOUCH;
 
       // Build meta tags
       const tags = Object.entries(settings.metaLabels)
@@ -1906,6 +1939,7 @@
     function buildResizeHandles() {
       const existing = document.getElementById('resizeOverlay');
       if (existing) existing.remove();
+      if (IS_TOUCH) return; // no resize on touch
       const overlay = document.createElement('div');
       overlay.id = 'resizeOverlay';
 
