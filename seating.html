@@ -535,6 +535,12 @@
       border-color: var(--accent);
     }
 
+    .student-chip.chip-selected {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      background: rgba(242, 101, 34, 0.15);
+    }
+
     #rosterHint {
       padding: 12px;
       font-size: 0.8rem;
@@ -2176,8 +2182,28 @@
         chip.textContent = `${student.lastName}, ${student.firstName}`;
         chip.title = gradeLabel(student);
         if (!placed) {
-          chip.draggable = true;
-          chip.addEventListener('dragstart', e => e.dataTransfer.setData('studentId', student.id));
+          chip.draggable = !IS_TOUCH;
+          if (!IS_TOUCH) {
+            chip.addEventListener('dragstart', e => e.dataTransfer.setData('studentId', student.id));
+          }
+          if (IS_TABLET) {
+            chip.addEventListener('touchend', e => {
+              e.preventDefault();
+              // If this chip is already selected, deselect
+              if (selectedRosterStudentId === student.id) {
+                clearTabletSelection();
+                return;
+              }
+              // Select this student, clear any desk selection
+              clearTabletSelection();
+              selectedRosterStudentId = student.id;
+              chip.classList.add('chip-selected');
+            });
+          }
+        }
+        // Re-highlight if this student was previously selected
+        if (IS_TABLET && selectedRosterStudentId === student.id && !placed) {
+          chip.classList.add('chip-selected');
         }
         li.appendChild(chip);
         rosterList.appendChild(li);
@@ -2885,6 +2911,7 @@
     // TABLET LONG-PRESS TO MOVE
     // ═══════════════════════════════════════════════════════════════════════════
     let selectedDeskKey = null;
+    let selectedRosterStudentId = null;
     let longPressTimer = null;
     const LONG_PRESS_MS = 500;
 
@@ -2919,18 +2946,50 @@
           // Short tap — cancelled long press
           clearTimeout(longPressTimer);
           longPressTimer = null;
-          // If something selected, this desk is the destination (occupied or empty)
+          // If a roster student is selected, move them here
+          if (selectedRosterStudentId) {
+            e.preventDefault();
+            triggerRosterConfirm(key);
+            return;
+          }
+          // If a desk student is selected, this is the destination
           if (selectedDeskKey && selectedDeskKey !== key) {
             e.preventDefault();
             triggerConfirm(key);
           }
         } else {
-          // Long press already fired — if occupied and nothing selected yet, already handled
-          // If empty desk tapped with selection active, handle it
-          if (selectedDeskKey && selectedDeskKey !== key && !isOccupied()) {
+          // Long press already fired
+          if (selectedRosterStudentId) {
+            e.preventDefault();
+            triggerRosterConfirm(key);
+          } else if (selectedDeskKey && selectedDeskKey !== key && !isOccupied()) {
             e.preventDefault();
             triggerConfirm(key);
           }
+        }
+      });
+    }
+
+    function triggerRosterConfirm(destKey) {
+      const student = students.find(s => s.id === selectedRosterStudentId);
+      if (!student) { clearTabletSelection(); return; }
+      const occupant = seats[destKey] ? students.find(s => s.id === seats[destKey]) : null;
+      if (occupant) {
+        showToast('That desk is occupied. Choose an empty desk.');
+        return;
+      }
+      const msg = `Move ${student.firstName} ${student.lastName} here?`;
+      showTapConfirm(msg, () => {
+        seats[destKey] = selectedRosterStudentId;
+        selectedRosterStudentId = null;
+        isDirty = true;
+        buildGrid();
+        renderRoster();
+        if (currentCourseId) {
+          const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '' };
+          localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
+          debouncedSyncToDrive();
+          showToast('Seating chart saved.');
         }
       });
     }
@@ -2973,6 +3032,10 @@
         const desk = grid.querySelector(`[data-key="${selectedDeskKey}"]`);
         if (desk) desk.classList.remove('selected');
         selectedDeskKey = null;
+      }
+      if (selectedRosterStudentId) {
+        rosterList.querySelectorAll('.chip-selected').forEach(c => c.classList.remove('chip-selected'));
+        selectedRosterStudentId = null;
       }
     }
 
