@@ -989,7 +989,7 @@ function showProgressReport(studentMap, courseId) {
     </div>
     <table class="progress-table">
       <thead><tr>
-        <th>Student</th><th>Grade</th><th>Earned / Possible</th><th>Turned In</th><th>Missing</th><th></th>
+        <th>Student</th><th>Grade</th><th class="col-earned">Earned / Possible</th><th>Turned In</th><th>Missing</th><th></th>
       </tr></thead>
       <tbody>`;
 
@@ -1047,7 +1047,7 @@ Mr. Chagoyan`,
       <tr class="${rowClass}">
         <td><span class="student-name-link" onclick='showStudentDetail(${JSON.stringify(s).replace(/'/g, '&#39;')}, "${esc(course.name)}")'>${esc(s.name)}</span></td>
         <td class="grade-cell">${pctLabel}</td>
-        <td>${s.earned} / ${s.possible}</td>
+        <td class="col-earned">${s.earned} / ${s.possible}</td>
         <td>${s.turnedIn > 0 ? s.turnedIn + ' turned in' : '—'}</td>
         <td>${s.missing > 0 ? s.missing + ' missing' : '—'}</td>
         <td>${gmailUrl && !IS_TOUCH ? `<a href="${gmailUrl}" class="email-btn" target="_blank" rel="noopener">✉️</a>` : ''}</td>
