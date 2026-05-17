@@ -1114,34 +1114,127 @@
       }
     }
 
-    /* ── Mobile / touch — view-only mode ────────────────────────────────── */
-    body.is-touch #applyGridBtn,
-    body.is-touch #saveRoomBtn,
-    body.is-touch #deleteRoomBtn,
-    body.is-touch #assignBtn,
-    body.is-touch #saveBtn,
-    body.is-touch #settingsBtn,
-    body.is-touch #printBtn,
-    body.is-touch .desk-remove,
-    body.is-touch #resizeOverlay,
-    body.is-touch .restore-btn {
+    /* ── Phone — view-only mode ──────────────────────────────────────────── */
+    body.is-phone #applyGridBtn,
+    body.is-phone #saveRoomBtn,
+    body.is-phone #deleteRoomBtn,
+    body.is-phone #assignBtn,
+    body.is-phone #saveBtn,
+    body.is-phone #settingsBtn,
+    body.is-phone #printBtn,
+    body.is-phone .desk-remove,
+    body.is-phone #resizeOverlay,
+    body.is-phone .restore-btn {
       display: none !important;
     }
 
-    body.is-touch .desk.occupied {
+    body.is-phone .desk.occupied {
       cursor: default;
     }
 
-    body.is-touch .desk.occupied:hover {
+    body.is-phone .desk.occupied:hover {
       filter: none;
       cursor: default;
     }
 
-    body.is-touch #rowCount,
-    body.is-touch #colCount,
-    body.is-touch label[for] {
+    body.is-phone #rowCount,
+    body.is-phone #colCount,
+    body.is-phone label[for] {
       pointer-events: none;
       opacity: 0.5;
+    }
+
+    /* ── Tablet — tap-to-move mode ───────────────────────────────────────── */
+    body.is-tablet #applyGridBtn,
+    body.is-tablet #saveRoomBtn,
+    body.is-tablet #deleteRoomBtn,
+    body.is-tablet #assignBtn,
+    body.is-tablet #saveBtn,
+    body.is-tablet #settingsBtn,
+    body.is-tablet #printBtn,
+    body.is-tablet .desk-remove,
+    body.is-tablet #resizeOverlay,
+    body.is-tablet .restore-btn {
+      display: none !important;
+    }
+
+    body.is-tablet #rowCount,
+    body.is-tablet #colCount,
+    body.is-tablet label[for] {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    body.is-tablet .desk {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body.is-tablet .desk.occupied {
+      cursor: pointer;
+    }
+
+    /* Selected desk ring */
+    .desk.occupied.selected {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+      filter: brightness(1.15);
+    }
+
+    /* ── Tap confirm popover ─────────────────────────────────────────────── */
+    #tapConfirm {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      z-index: 500;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+      text-align: center;
+      min-width: 260px;
+      display: none;
+    }
+
+    #tapConfirm.show {
+      display: block;
+    }
+
+    #tapConfirm p {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .tap-confirm-btns {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .tap-confirm-btns button {
+      padding: 12px 28px;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      min-width: 100px;
+    }
+
+    #tapConfirmYes {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    #tapConfirmNo {
+      background: var(--surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
     }
   </style>
 </head>
@@ -1370,6 +1463,15 @@
     </div>
   </div>
 
+  <!-- ── Tap confirm popover (tablet mode) ─────────────────────────────────── -->
+  <div id="tapConfirm">
+    <p id="tapConfirmMsg"></p>
+    <div class="tap-confirm-btns">
+      <button id="tapConfirmYes">✓ Confirm</button>
+      <button id="tapConfirmNo">✗ Cancel</button>
+    </div>
+  </div>
+
   <!-- ── Toast ──────────────────────────────────────────────────────────────── -->
   <div id="toast"></div>
 
@@ -1385,7 +1487,10 @@
     const GAP = 10;
     const MIN_SIZE = 16;
     const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    if (IS_TOUCH) document.body.classList.add('is-touch');
+    const IS_TABLET = IS_TOUCH && window.screen.width >= 768;
+    const IS_PHONE = IS_TOUCH && window.screen.width < 768;
+    if (IS_PHONE) document.body.classList.add('is-phone');
+    if (IS_TABLET) document.body.classList.add('is-tablet');
 
     const GC_SCOPES = [
       'https://www.googleapis.com/auth/classroom.courses.readonly',
@@ -1853,7 +1958,12 @@
 
     function setDeskEmpty(desk, key) {
       desk.textContent = '+';
-      if (IS_TOUCH) return; // view-only on touch
+      if (IS_PHONE) return; // view-only on phone
+      if (IS_TABLET) {
+        // On tablet, empty desk is a drop target for selected student
+        addTabletTapHandler(desk, key);
+        return;
+      }
       desk.addEventListener('click', () => openPicker(key));
       desk.addEventListener('dragover', e => { e.preventDefault(); desk.classList.add('drag-over'); });
       desk.addEventListener('dragleave', () => desk.classList.remove('drag-over'));
@@ -1869,14 +1979,18 @@
       desk.className = `desk occupied ${tier}`;
       desk.draggable = !IS_TOUCH;
 
+      // Tablet tap handler
+      if (IS_TABLET) {
+        addTabletTapHandler(desk, desk.dataset.key);
+      }
+
       // Build meta tags
       const tags = Object.entries(settings.metaLabels)
         .filter(([k, label]) => label && student.meta[k])
         .map(([k]) => `<span class="desk-tag">${student.meta[k]}</span>`)
         .join('');
 
-      const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-      const nameHtml = (student.email && !isMobile)
+      const nameHtml = (student.email && !IS_TOUCH)
         ? `<a href="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(student.email)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;cursor:pointer;">${student.firstName}<br>${student.lastName}</a>`
         : `${student.firstName}<br>${student.lastName}`;
 
@@ -1939,7 +2053,7 @@
     function buildResizeHandles() {
       const existing = document.getElementById('resizeOverlay');
       if (existing) existing.remove();
-      if (IS_TOUCH) return; // no resize on touch
+      if (IS_TOUCH) return; // no resize on touch devices
       const overlay = document.createElement('div');
       overlay.id = 'resizeOverlay';
 
@@ -2766,6 +2880,114 @@
       localStorage.removeItem('gcdash-return-token');
       window.location.href = 'index.html';
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TABLET LONG-PRESS TO MOVE
+    // ═══════════════════════════════════════════════════════════════════════════
+    let selectedDeskKey = null;
+    let longPressTimer = null;
+    const LONG_PRESS_MS = 500;
+
+    function addTabletTapHandler(desk, key) {
+      const studentId = () => seats[key];
+
+      // Long press to SELECT an occupied desk
+      desk.addEventListener('touchstart', e => {
+        if (!studentId()) return; // only long-press occupied desks
+        longPressTimer = setTimeout(() => {
+          // Vibrate if available
+          if (navigator.vibrate) navigator.vibrate(40);
+          // If something already selected, treat this as destination
+          if (selectedDeskKey && selectedDeskKey !== key) {
+            triggerConfirm(key);
+            return;
+          }
+          // Select this desk
+          clearTabletSelection();
+          selectedDeskKey = key;
+          desk.classList.add('selected');
+        }, LONG_PRESS_MS);
+      }, { passive: true });
+
+      // Cancel long press if finger moves
+      desk.addEventListener('touchmove', () => {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }, { passive: true });
+
+      // Short tap on a desk when something is already selected → move there
+      desk.addEventListener('touchend', e => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+          // Short tap — if something selected, this is the destination
+          if (selectedDeskKey && selectedDeskKey !== key) {
+            e.preventDefault();
+            triggerConfirm(key);
+          }
+        }
+      });
+    }
+
+    function triggerConfirm(destKey) {
+      const fromStudent = students.find(s => s.id === seats[selectedDeskKey]);
+      if (!fromStudent) { clearTabletSelection(); return; }
+      const toStudent = seats[destKey] ? students.find(s => s.id === seats[destKey]) : null;
+      const msg = toStudent
+        ? `Swap ${fromStudent.firstName} ${fromStudent.lastName} and ${toStudent.firstName} ${toStudent.lastName}?`
+        : `Move ${fromStudent.firstName} ${fromStudent.lastName} here?`;
+
+      showTapConfirm(msg, () => {
+        placeStudent(seats[selectedDeskKey], destKey);
+        clearTabletSelection();
+        // Auto-save
+        if (currentCourseId) {
+          const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '' };
+          localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
+          debouncedSyncToDrive();
+          showToast('Seating chart saved.');
+        }
+      });
+    }
+
+    function clearTabletSelection() {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+      if (selectedDeskKey) {
+        const desk = grid.querySelector(`[data-key="${selectedDeskKey}"]`);
+        if (desk) desk.classList.remove('selected');
+        selectedDeskKey = null;
+      }
+    }
+
+    function showTapConfirm(msg, onConfirm) {
+      const el = document.getElementById('tapConfirm');
+      const yes = document.getElementById('tapConfirmYes');
+      const no = document.getElementById('tapConfirmNo');
+      document.getElementById('tapConfirmMsg').textContent = msg;
+      el.classList.add('show');
+
+      const cleanup = () => {
+        el.classList.remove('show');
+        yes.removeEventListener('touchend', handleYes);
+        no.removeEventListener('touchend', handleNo);
+        yes.removeEventListener('click', handleYes);
+        no.removeEventListener('click', handleNo);
+      };
+      const handleYes = e => { e.preventDefault(); cleanup(); onConfirm(); };
+      const handleNo = e => { e.preventDefault(); cleanup(); clearTabletSelection(); };
+      yes.addEventListener('touchend', handleYes);
+      no.addEventListener('touchend', handleNo);
+      yes.addEventListener('click', handleYes);
+      no.addEventListener('click', handleNo);
+    }
+
+    // Tap outside grid to deselect
+    document.getElementById('chartArea').addEventListener('touchend', e => {
+      if (IS_TABLET && selectedDeskKey && !e.target.closest('.desk')) {
+        clearTabletSelection();
+      }
+    });
 
     function goHome() {
       if (accessToken) localStorage.setItem('gcdash-return-token', accessToken);
