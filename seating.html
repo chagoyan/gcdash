@@ -619,6 +619,31 @@
       opacity: 0.9;
     }
 
+    .desk.is-space {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a !important;
+      cursor: default !important;
+      opacity: 1;
+    }
+    .desk.is-space:hover {
+      background: #1a1a1a !important;
+      box-shadow: none !important;
+    }
+    body.room-edit-mode .desk:not(.occupied):not(.is-aisle) {
+      cursor: pointer !important;
+    }
+    body.room-edit-mode .desk.is-space:hover {
+      background: #2e2e2e !important;
+    }
+    body.room-edit-mode .desk:not(.is-space):not(.occupied):not(.is-aisle) {
+      border: 1px dashed #F26522 !important;
+    }
+    #editRoomBtn.active {
+      background: #F26522;
+      color: #fff;
+      border-color: transparent;
+    }
+
     .restore-btn {
       background: none;
       border: none;
@@ -1154,6 +1179,7 @@
     body.is-tablet #applyGridBtn,
     body.is-tablet #saveRoomBtn,
     body.is-tablet #deleteRoomBtn,
+    body.is-tablet #editRoomBtn,
     body.is-tablet #assignBtn,
     body.is-tablet #saveBtn,
     body.is-tablet #settingsBtn,
@@ -1310,6 +1336,7 @@
 
       <div class="divider-v"></div>
 
+      <button class="btn btn-ghost" id="editRoomBtn" disabled>Edit Room</button>
       <div class="dd-wrap">
         <button class="btn btn-ghost" id="assignBtn" disabled>Assign ▾</button>
         <div class="dd-menu" id="assignMenu">
@@ -1531,6 +1558,8 @@
     let currentCourseId = null;
     let isDirty = false;
     let pickerTargetKey = null;
+    let desks = new Set();
+    let roomEditMode = false;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // DOM REFS
@@ -1544,6 +1573,7 @@
     const saveRoomBtn = document.getElementById('saveRoomBtn');
     const deleteRoomBtn = document.getElementById('deleteRoomBtn');
     const assignBtn = document.getElementById('assignBtn');
+    const editRoomBtn = document.getElementById('editRoomBtn');
     const assignMenu = document.getElementById('assignMenu');
     const saveBtn = document.getElementById('saveBtn');
     const settingsBtn = document.getElementById('settingsBtn');
@@ -1812,6 +1842,7 @@
       students = [];
       setStatus('<span class="spinner"></span> Loading roster…');
       assignBtn.disabled = true;
+      editRoomBtn.disabled = true;
       saveBtn.disabled = true;
 
       try {
@@ -1865,6 +1896,14 @@
           rowInput.value = rows;
           colInput.value = cols;
           seats = saved.seats || {};
+          if (saved.desks) {
+            desks = new Set(saved.desks);
+          } else {
+            desks = new Set();
+            for (let r2 = 0; r2 < rows; r2++)
+              for (let c2 = 0; c2 < cols; c2++)
+                desks.add(`${r2}-${c2}`);
+          }
           const validIds = new Set(students.map(s => s.id));
           for (const k of Object.keys(seats)) {
             if (seats[k] && !validIds.has(seats[k])) delete seats[k];
@@ -1891,6 +1930,7 @@
         } else {
           colWidths = [];
           rowHeights = [];
+          desks = new Set();
         }
 
         // 4. Show roster immediately — teacher can start arranging right away
@@ -1898,6 +1938,7 @@
         renderRoster();
         rosterHint.style.display = 'none';
         assignBtn.disabled = false;
+        editRoomBtn.disabled = false;
         saveBtn.disabled = !isDirty;
         isDirty = false;
 
@@ -1950,19 +1991,18 @@
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const key = `${r}-${c}`;
-          const isAisle = colWidths[c] < MIN_SIZE * 2 || rowHeights[r] < MIN_SIZE * 2;
+          const isDesk = desks.has(key);
           const desk = document.createElement('div');
-          desk.className = 'desk' + (isAisle ? ' is-aisle' : '');
           desk.dataset.key = key;
 
-          if (isAisle) {
-            const btn = document.createElement('button');
-            btn.className = 'restore-btn';
-            btn.textContent = '+';
-            btn.title = 'Restore desk';
-            btn.addEventListener('click', () => restoreCell(r, c));
-            desk.appendChild(btn);
+          if (!isDesk) {
+            desk.className = 'desk is-space';
+            if (roomEditMode) desk.addEventListener('click', () => toggleDesk(key));
+          } else if (roomEditMode) {
+            desk.className = 'desk';
+            if (!seats[key]) desk.addEventListener('click', () => toggleDesk(key));
           } else {
+            desk.className = 'desk';
             const studentId = seats[key];
             if (studentId) {
               const student = students.find(s => s.id === studentId);
@@ -1976,6 +2016,18 @@
         }
       }
       buildResizeHandles();
+    }
+
+    function toggleDesk(key) {
+      if (desks.has(key)) {
+        desks.delete(key);
+        if (seats[key]) delete seats[key];
+      } else {
+        desks.add(key);
+      }
+      markDirty();
+      buildGrid();
+      renderRoster();
     }
 
     function setDeskEmpty(desk, key) {
@@ -2311,9 +2363,11 @@
         }
       }
       const available = [];
-      grid.querySelectorAll('.desk:not(.is-aisle)').forEach(d => {
-        if (!seats[d.dataset.key]) available.push(d.dataset.key);
-      });
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++) {
+          const k = `${r}-${c}`;
+          if (desks.has(k) && !seats[k]) available.push(k);
+        }
       unplaced.forEach((s, i) => {
         if (i < available.length) seats[available[i]] = s.id;
       });
@@ -2321,6 +2375,13 @@
       buildGrid();
       renderRoster();
     }
+
+    editRoomBtn.addEventListener('click', () => {
+      roomEditMode = !roomEditMode;
+      editRoomBtn.classList.toggle('active', roomEditMode);
+      document.body.classList.toggle('room-edit-mode', roomEditMode);
+      buildGrid();
+    });
 
     assignBtn.addEventListener('click', e => {
       e.stopPropagation();
@@ -2345,6 +2406,7 @@
       rows = newRows; cols = newCols;
       colWidths = [];
       rowHeights = [];
+      desks = new Set();
       // Prune out-of-bounds seats
       for (const [key, id] of Object.entries(seats)) {
         const [r, c] = key.split('-').map(Number);
@@ -2437,7 +2499,7 @@
 
     saveBtn.addEventListener('click', () => {
       if (!currentCourseId) return;
-      const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '' };
+      const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '', desks: [...desks] };
       localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
       isDirty = false;
       saveBtn.disabled = true;
@@ -3006,7 +3068,7 @@
         buildGrid();
         renderRoster();
         if (currentCourseId) {
-          const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '' };
+          const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '', desks: [...desks] };
           localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
           debouncedSyncToDrive();
           showToast('Seating chart saved.');
@@ -3037,7 +3099,7 @@
         renderRoster();
         // Auto-save
         if (currentCourseId) {
-          const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '' };
+          const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '', desks: [...desks] };
           localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
           debouncedSyncToDrive();
           showToast('Seating chart saved.');
