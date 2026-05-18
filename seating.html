@@ -1295,9 +1295,9 @@
       <div class="divider-v"></div>
 
       <label style="font-size:0.82rem;color:var(--text-muted);">Rows</label>
-      <input type="number" id="rowCount" value="5" min="1" max="14" />
+      <input type="number" id="rowCount" value="5" min="1" max="28" />
       <label style="font-size:0.82rem;color:var(--text-muted);">Cols</label>
-      <input type="number" id="colCount" value="6" min="1" max="14" />
+      <input type="number" id="colCount" value="6" min="1" max="28" />
       <button class="btn btn-ghost" id="applyGridBtn">Apply</button>
 
       <div class="divider-v"></div>
@@ -1413,11 +1413,11 @@
         <div class="threshold-row">
           <div class="field-row">
             <label>Rows</label>
-            <input type="number" id="defaultRows" value="5" min="1" max="14" />
+            <input type="number" id="defaultRows" value="5" min="1" max="28" />
           </div>
           <div class="field-row">
             <label>Columns</label>
-            <input type="number" id="defaultCols" value="6" min="1" max="14" />
+            <input type="number" id="defaultCols" value="6" min="1" max="28" />
           </div>
         </div>
       </div>
@@ -2079,7 +2079,7 @@
     function buildResizeHandles() {
       const existing = document.getElementById('resizeOverlay');
       if (existing) existing.remove();
-      if (IS_TOUCH) return; // no resize on touch devices
+      return; // column/row resizing disabled
       const overlay = document.createElement('div');
       overlay.id = 'resizeOverlay';
 
