@@ -1328,6 +1328,7 @@
 
       <div class="divider-v"></div>
 
+      <button class="btn btn-ghost" id="editRoomBtn" disabled>Edit Room</button>
       <select id="roomSelect">
         <option value="">— Room layout —</option>
       </select>
@@ -1335,8 +1336,6 @@
       <button class="btn btn-ghost" id="deleteRoomBtn" title="Delete room layout" style="padding:5px 9px;">✕</button>
 
       <div class="divider-v"></div>
-
-      <button class="btn btn-ghost" id="editRoomBtn" disabled>Edit Room</button>
       <div class="dd-wrap">
         <button class="btn btn-ghost" id="assignBtn" disabled>Assign ▾</button>
         <div class="dd-menu" id="assignMenu">
@@ -1896,7 +1895,10 @@
           rowInput.value = rows;
           colInput.value = cols;
           seats = saved.seats || {};
-          if (saved.desks) {
+          const roomLayout = saved.room ? getRooms()[saved.room] : null;
+          if (roomLayout?.desks) {
+            desks = new Set(roomLayout.desks);
+          } else if (saved.desks) {
             desks = new Set(saved.desks);
           } else {
             desks = new Set();
@@ -2442,6 +2444,12 @@
       localStorage.setItem('gcdash-seating-rooms', JSON.stringify(data));
       debouncedSyncToDrive();
     }
+    function syncRoomDesks() {
+      const name = roomSelect.value;
+      if (!name) return;
+      const rooms = getRooms();
+      if (rooms[name]) { rooms[name].desks = [...desks]; setRooms(rooms); }
+    }
 
     roomSelect.addEventListener('change', () => {
       const name = roomSelect.value;
@@ -2452,6 +2460,7 @@
       if (!layout) return;
       colWidths = layout.colWidths || Array(layout.cols).fill(DESK_W);
       rowHeights = layout.rowHeights || Array(layout.rows).fill(DESK_H);
+      desks = layout.desks ? new Set(layout.desks) : new Set();
       for (const key of Object.keys(seats)) {
         const [r, c] = key.split('-').map(Number);
         if (r >= layout.rows || c >= layout.cols) delete seats[key];
@@ -2466,7 +2475,7 @@
       const name = prompt('Room layout name:');
       if (!name) return;
       const rooms = getRooms();
-      rooms[name] = { rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights] };
+      rooms[name] = { rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], desks: [...desks] };
       setRooms(rooms);
       loadRoomOptions(name);
       showToast(`Room "${name}" saved.`);
@@ -2501,6 +2510,7 @@
       if (!currentCourseId) return;
       const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '', desks: [...desks] };
       localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
+      syncRoomDesks();
       isDirty = false;
       saveBtn.disabled = true;
       debouncedSyncToDrive();
@@ -3070,6 +3080,7 @@
         if (currentCourseId) {
           const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '', desks: [...desks] };
           localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
+          syncRoomDesks();
           debouncedSyncToDrive();
           showToast('Seating chart saved.');
         }
@@ -3101,6 +3112,7 @@
         if (currentCourseId) {
           const payload = { seats, rows, cols, colWidths: [...colWidths], rowHeights: [...rowHeights], room: roomSelect.value || '', desks: [...desks] };
           localStorage.setItem(saveKey(currentCourseId), JSON.stringify(payload));
+          syncRoomDesks();
           debouncedSyncToDrive();
           showToast('Seating chart saved.');
         }
