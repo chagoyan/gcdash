@@ -2615,10 +2615,10 @@
       const options = [...courseSelect.options].filter(o => o.value);
       if (!options.length) { showToast('Load your classes first.'); return; }
 
+      const currentCourseId = courseSelect.value;
       options.forEach(opt => {
         const courseId = opt.value;
         const cached = !!loadCachedGrades(courseId);
-        const hasSaved = !!loadSavedLayout(courseId);
 
         const row = document.createElement('label');
         row.className = 'print-class-row';
@@ -2626,8 +2626,7 @@
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.value = courseId;
-        // Pre-check if this class has a saved layout
-        cb.checked = hasSaved;
+        cb.checked = courseId === currentCourseId;
 
         const name = document.createElement('span');
         name.className = 'print-class-name';
