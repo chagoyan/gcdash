@@ -2762,9 +2762,8 @@
         // Always render the full saved layout — empty desks are part of the room
         const effectiveRows = rows;
 
-        const colTpl = colWidths.map(w => w < aisleColThresh ? '24px' : w + 'fr').join(' ');
-        const rowTpl = rowHeights.slice(0, effectiveRows).map(h => h < aisleRowThresh ? '24px' : h + 'fr').join(' ');
-        console.log('Print colTpl:', colTpl);
+        const colTpl = colWidths.map(w => w + 'fr').join(' ');
+        const rowTpl = rowHeights.slice(0, effectiveRows).map(h => h + 'fr').join(' ');
 
         let gridCells = '';
         for (let r = 0; r < effectiveRows; r++) {
