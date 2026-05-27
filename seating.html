@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=1200" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GCDash — Seating Chart</title>
   <link rel="icon" type="image/png" href="logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -505,6 +505,7 @@
       cursor: grab;
       border-left: 3px solid transparent;
       background: var(--surface2);
+      color: var(--text);
       transition: opacity 0.15s, background 0.15s;
       user-select: none;
       line-height: 1.3;
@@ -1274,6 +1275,69 @@
       color: var(--text-muted);
       border: 1px solid var(--border);
     }
+
+    /* ── Responsive ──────────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      :root {
+        --desk-w: 90px;
+        --desk-h: 60px;
+        --sidebar-w: 160px;
+        --header-h: auto;
+      }
+
+      header {
+        flex-direction: column;
+        height: auto;
+        min-height: auto;
+        align-items: stretch;
+        padding: 0;
+      }
+
+      /* Row 1: brand + sign out already inline-styled; Row 2: wrap controls */
+      header > div:last-child {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 6px 10px;
+      }
+
+      select { max-width: 140px; }
+
+      .divider-v { display: none; }
+
+      #toolbar { padding: 0 10px; }
+
+      #legend {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: auto;
+        padding: 6px 10px;
+        gap: 8px;
+      }
+
+      #sidebar {
+        --sidebar-w: 140px;
+        width: 140px;
+        min-width: 140px;
+      }
+
+      .student-chip { font-size: 0.72rem; padding: 4px 7px; }
+
+      #chartArea { padding: 12px; }
+
+      .desk-name { font-size: 0.7rem; }
+      .desk-grade { font-size: 0.65rem; }
+    }
+
+    @media (max-width: 480px) {
+      :root {
+        --desk-w: 76px;
+        --desk-h: 54px;
+      }
+
+      #sidebar { display: none; }
+
+      header > div:last-child select { max-width: 120px; }
+    }
   </style>
 </head>
 
@@ -1524,7 +1588,7 @@
     const DESK_H = 76;
     const GAP = 10;
     const MIN_SIZE = 16;
-    const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
     const IS_TABLET = IS_TOUCH && window.screen.width >= 768;
     const IS_PHONE = IS_TOUCH && window.screen.width < 768;
     if (IS_PHONE) document.body.classList.add('is-phone');
