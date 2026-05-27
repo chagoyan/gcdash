@@ -2911,8 +2911,12 @@
         }
 
         // Proportional fr units — empty rows/cols get half weight, matching the interactive view
-        const colTpl = colWidths.map((w, c) => (activeCol.has(c) ? w : Math.round(w / 2)) + 'fr').join(' ');
-        const rowTpl = rowHeights.slice(0, rows).map((h, r) => (activeRow.has(r) ? h : Math.round(h / 2)) + 'fr').join(' ');
+        const dispColW = colWidths.map((w, c) => activeCol.has(c) ? w : Math.round(w / 2));
+        const dispRowH = rowHeights.slice(0, rows).map((h, r) => activeRow.has(r) ? h : Math.round(h / 2));
+        const colTpl = dispColW.map(w => w + 'fr').join(' ');
+        const rowTpl = dispRowH.map(h => h + 'fr').join(' ');
+        const totalColFr = dispColW.reduce((a, b) => a + b, 0);
+        const totalRowFr = dispRowH.reduce((a, b) => a + b, 0);
 
         let gridCells = '';
         for (let r = 0; r < rows; r++) {
@@ -2945,7 +2949,7 @@
           <div class="page-meta">${date}</div>
         </div>
         <div class="grid-wrap">
-          <div class="grid" style="grid-template-columns:${colTpl};grid-template-rows:${rowTpl};">
+          <div class="grid" style="grid-template-columns:${colTpl};grid-template-rows:${rowTpl};aspect-ratio:${totalColFr}/${totalRowFr};">
             ${gridCells}
           </div>
         </div>
@@ -2995,12 +2999,13 @@
   .page-meta { font-size: 11px; color: #777; }
 
   /* ── Grid ── */
-  .grid-wrap { flex: 1; display: flex; min-height: 0; padding: 4px 0; }
+  .grid-wrap { flex: 1; display: flex; min-height: 0; align-items: flex-start; padding: 4px 0; overflow: hidden; }
   .grid {
     display: grid;
     gap: 5px;
     width: 100%;
-    height: 100%;
+    max-height: 100%;
+    /* height is driven by aspect-ratio set inline — prevents vertical stretching */
   }
 
   /* ── Desk cards ── */
