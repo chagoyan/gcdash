@@ -590,9 +590,15 @@ function getTextColor(hex) {
 }
 
 function applyCardColor(div, color) {
-	div.style.background = color || '#2E2E2E';
-	div.style.color = color ? getTextColor(color) : '#FFFFFF';
-	div.style.border = '1px solid #FFFFFF';
+	if (!color) {
+		div.style.background = '';
+		div.style.color = '';
+		div.style.border = '';
+		return;
+	}
+	div.style.background = color;
+	div.style.color = getTextColor(color);
+	div.style.border = '1px solid #5f6368';
 }
 
 let openPalette = null;
@@ -617,8 +623,8 @@ function togglePalette(e, courseId, div) {
 			setCourseColor(courseId, c.value);
 			applyCardColor(div, c.value);
 			const btn = div.querySelector('.color-picker-btn');
-			btn.style.background = c.value || '#2E2E2E';
-			btn.style.borderColor = c.value ? getTextColor(c.value) : '#ddd';
+			btn.style.background = c.value || '#f1f3f4';
+			btn.style.borderColor = c.value ? getTextColor(c.value) : '#5f6368';
 			palette.remove();
 			openPalette = null;
 			debouncedSave();
@@ -703,14 +709,14 @@ function renderCourses() {
 
 			const saved = getCourseColor(c.id);
 			applyCardColor(div, saved);
-			if (c.id === selectedId) div.style.border = '3px solid #FFFFFF';
+			if (c.id === selectedId) div.style.border = '3px solid #F26522';
 
 			div.innerHTML = `<h3>${esc(c.name)}</h3><div class="meta">${esc(c.section || '')}${c.room ? ' · ' + esc(c.room) : ''}</div>`;
 
 			const colorBtn = document.createElement('div');
 			colorBtn.className = 'color-picker-btn';
-			colorBtn.style.background = saved || '#2E2E2E';
-			colorBtn.style.borderColor = saved ? getTextColor(saved) : '#ddd';
+			colorBtn.style.background = saved || '#f1f3f4';
+			colorBtn.style.borderColor = saved ? getTextColor(saved) : '#5f6368';
 			colorBtn.title = 'Pick a color';
 			colorBtn.onclick = (e) => togglePalette(e, c.id, div);
 			div.appendChild(colorBtn);
@@ -739,8 +745,11 @@ function selectCourse(id) {
 	selectedId = id;
 	document.querySelectorAll('.course-card').forEach((el) => {
 		el.classList.toggle('selected', el.dataset.id === id);
+		const hasColor = !!getCourseColor(el.dataset.id);
 		el.style.border =
-			el.dataset.id === id ? '3px solid #FFFFFF' : '1px solid #FFFFFF';
+			el.dataset.id === id
+				? '3px solid #F26522'
+				: hasColor ? '1px solid #5f6368' : '';
 	});
 	document.getElementById('fetch-btn').disabled = false;
 	document.getElementById('monitor-btn').disabled = false;
