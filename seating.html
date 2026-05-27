@@ -2855,15 +2855,14 @@
           }
           courseStudents.forEach(s => { s.grade = grades[s.id] ?? null; });
 
-          // 3. Get saved layout — preserve exact col/row sizes including aisles
+          // 3. Get saved layout
           const saved = loadSavedLayout(courseId);
           const courseSeats = saved?.seats || {};
           const courseRows = saved?.rows || settings.defaultRows;
           const courseCols = saved?.cols || settings.defaultCols;
-          // Keep exact saved widths/heights — aisles are small, desks are their saved size
-          // We'll normalize desk sizes in openPrintWindow, preserving aisle positions
           const courseColW = saved?.colWidths || Array(courseCols).fill(DESK_W);
           const courseRowH = saved?.rowHeights || Array(courseRows).fill(DESK_H);
+          const courseDesks = saved?.desks || [];
 
           pages.push({
             name: courseName,
@@ -2873,6 +2872,7 @@
             cols: courseCols,
             colWidths: courseColW,
             rowHeights: courseRowH,
+            desks: courseDesks,
           });
         } catch (err) {
           showToast(`Error loading ${courseName}: ${err.message}`);
@@ -2898,32 +2898,28 @@
 
       let pagesHtml = '';
       pages.forEach((page, idx) => {
-        const { name, students: stu, seats, rows, cols, colWidths, rowHeights } = page;
+        const { name, students: stu, seats, rows, cols, colWidths, rowHeights, desks: savedDesks } = page;
 
-        // Aisle threshold matches interactive view exactly: MIN_SIZE * 2 = 32px
-        const aisleColThresh = MIN_SIZE * 2;
-        const aisleRowThresh = MIN_SIZE * 2;
+        // Build desk set and detect which rows/cols have at least one desk
+        const deskSet = new Set(savedDesks);
+        const activeCol = new Set();
+        const activeRow = new Set();
+        for (const key of deskSet) {
+          const [r, c] = key.split('-').map(Number);
+          activeRow.add(r);
+          activeCol.add(c);
+        }
 
-        // Always render the full saved layout — empty desks are part of the room
-        const effectiveRows = rows;
-
-        const colTpl = colWidths.map(w => w < aisleColThresh ? '20px' : '1fr').join(' ');
-        const rowTpl = rowHeights.slice(0, effectiveRows).map(h => h < aisleRowThresh ? '20px' : '1fr').join(' ');
+        // Proportional fr units — empty rows/cols get half weight, matching the interactive view
+        const colTpl = colWidths.map((w, c) => (activeCol.has(c) ? w : Math.round(w / 2)) + 'fr').join(' ');
+        const rowTpl = rowHeights.slice(0, rows).map((h, r) => (activeRow.has(r) ? h : Math.round(h / 2)) + 'fr').join(' ');
 
         let gridCells = '';
-        for (let r = 0; r < effectiveRows; r++) {
+        for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
             const key = `${r}-${c}`;
-            const isColAisle = colWidths[c] < aisleColThresh;
-            const isRowAisle = rowHeights[r] < aisleRowThresh;
-            const isAisle = isColAisle || isRowAisle;
-
-            if (isAisle) {
-              // Visible aisle — dashed border and label
-              const label = isColAisle && !isRowAisle ? '<span style="writing-mode:vertical-rl;font-size:7px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;">aisle</span>' : '';
-              gridCells += `<div style="width:100%;height:100%;background:rgba(0,0,0,0.03);
-            border-left:1px dashed #ccc;border-right:1px dashed #ccc;
-            display:flex;align-items:center;justify-content:center;">${label}</div>`;
+            if (!deskSet.has(key)) {
+              gridCells += `<div></div>`;
             } else {
               const studentId = seats[key];
               const student = studentId ? stu.find(s => s.id === studentId) : null;
@@ -2981,9 +2977,10 @@
   button.sec { background: #fff; color: #333; border: 1px solid #ccc; }
 
   /* ── Page ── */
+  html, body { height: 100%; }
   .page {
-    width: 100vw; height: 100vh;
-    padding: 0.7cm 0.9cm 0.5cm;
+    width: 100%; height: 100vh;
+    padding: 0.6cm 0.8cm 0.4cm;
     display: flex; flex-direction: column;
     overflow: hidden;
   }
@@ -3043,9 +3040,11 @@
   /* ── Print ── */
   @media print {
     .no-print { display: none !important; }
-    @page { size: landscape; margin: 0.6cm; }
+    @page { size: landscape; margin: 0.5cm; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .page { width: 100%; height: 100vh; }
+    html, body { height: 100%; }
+    .page { width: 100%; height: 100%; padding: 0; }
+    .grid-wrap { flex: 1; min-height: 0; }
   }
 </style>
 </head>
