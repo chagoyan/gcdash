@@ -516,7 +516,7 @@
     }
 
     .student-chip.placed {
-      opacity: 0.35;
+      opacity: 0.55;
       cursor: default;
     }
 
@@ -2165,8 +2165,18 @@
     }
 
     function applyGridTemplate() {
-      grid.style.gridTemplateColumns = colWidths.map(w => w + 'px').join(' ');
-      grid.style.gridTemplateRows = rowHeights.map(h => h + 'px').join(' ');
+      // Rows/cols with no desks display at half size; desk data is unchanged
+      const activeCol = new Set();
+      const activeRow = new Set();
+      for (const key of desks) {
+        const [r, c] = key.split('-').map(Number);
+        activeRow.add(r);
+        activeCol.add(c);
+      }
+      const dispCols = colWidths.map((w, c) => activeCol.has(c) ? w : Math.round(w / 2));
+      const dispRows = rowHeights.map((h, r) => activeRow.has(r) ? h : Math.round(h / 2));
+      grid.style.gridTemplateColumns = dispCols.map(w => w + 'px').join(' ');
+      grid.style.gridTemplateRows = dispRows.map(h => h + 'px').join(' ');
       grid.style.gap = GAP + 'px';
     }
 
