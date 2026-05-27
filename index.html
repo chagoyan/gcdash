@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GCDash — Google Classroom Dashboard</title>
   <link rel="icon" type="image/png" href="logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 
   <!-- Google Identity Services — required for OAuth -->
   <script src="https://accounts.google.com/gsi/client"></script>
@@ -20,7 +22,7 @@
       display: inline-block;
       width: 16px;
       height: 16px;
-      border: 2px solid #ccc;
+      border: 2px solid #dadce0;
       border-top-color: #F26522;
       border-radius: 50%;
       animation: gcdash-spin 0.7s linear infinite;
@@ -54,7 +56,7 @@
         <p class="subtitle">Google Classroom Dashboard</p>
       </div>
       <a id="signout-btn" href="#" onclick="resetApp(); return false;"
-        style="display:none;margin-left:auto;font-size:13px;color:#888;text-decoration:none;">Sign out</a>
+        style="display:none;margin-left:auto;font-size:13px;color:#5f6368;text-decoration:none;">Sign out</a>
     </div>
 
     <!-- --------------------------------------------------------
@@ -63,7 +65,7 @@
   --------------------------------------------------------- -->
     <div class="setup-box" id="setup-section">
       <h2>Google Classroom Dashboard</h2>
-      <p style="font-size:13px;color:#888;margin-bottom:1.25rem;">Connect your Google account to view course outlines,
+      <p style="font-size:13px;color:#5f6368;margin-bottom:1.25rem;">Connect your Google account to view course outlines,
         assignments, materials, and monitor student progress.</p>
       <button class="btn btn-primary" id="connect-btn" onclick="connectGoogle()">Connect with Google</button>
       <div class="token-note">Read-only access — your data never leaves your browser.</div>

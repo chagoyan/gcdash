@@ -21,15 +21,15 @@
     }
 
     :root {
-      --bg: #111111;
-      --surface: #1a1a1a;
-      --surface2: #2e2e2e;
-      --border: #2e2e2e;
+      --bg: #f1f3f4;
+      --surface: #ffffff;
+      --surface2: #f8f9fa;
+      --border: #dadce0;
       --accent: #F26522;
       --accent-dim: #C74E0A;
-      --text: #ffffff;
-      --text-muted: #888888;
-      --text-dim: #555555;
+      --text: #202124;
+      --text-muted: #5f6368;
+      --text-dim: #80868b;
 
       /* grade tiers */
       --green: #22c55e;
@@ -606,13 +606,13 @@
 
     .desk.drag-over {
       border-color: var(--accent);
-      background: rgba(74, 144, 217, 0.08);
+      background: rgba(242, 101, 34, 0.08);
     }
 
     .desk.is-aisle {
-      background: #333;
+      background: #e8eaed;
       border: 1px dashed var(--border);
-      opacity: 0.6;
+      opacity: 0.7;
     }
 
     .desk.is-aisle:hover {
@@ -620,20 +620,20 @@
     }
 
     .desk.is-space {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a !important;
+      background: var(--bg);
+      border: 1px solid #e8eaed !important;
       cursor: default !important;
       opacity: 1;
     }
     .desk.is-space:hover {
-      background: #1a1a1a !important;
+      background: var(--bg) !important;
       box-shadow: none !important;
     }
     body.room-edit-mode .desk:not(.occupied):not(.is-aisle) {
       cursor: pointer !important;
     }
     body.room-edit-mode .desk.is-space:hover {
-      background: #2e2e2e !important;
+      background: #e8eaed !important;
     }
     body.room-edit-mode .desk:not(.is-space):not(.occupied):not(.is-aisle) {
       border: 1px dashed #F26522 !important;
@@ -706,7 +706,7 @@
       width: 16px;
       height: 16px;
       border-radius: 50%;
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.12);
       border: none;
       color: var(--text-muted);
       font-size: 0.6rem;
@@ -749,7 +749,7 @@
       font-family: 'DM Mono', monospace;
       padding: 1px 4px;
       border-radius: 3px;
-      background: rgba(255, 255, 255, 0.07);
+      background: rgba(0, 0, 0, 0.07);
       color: var(--text-muted);
       line-height: 1.4;
     }
@@ -788,12 +788,12 @@
 
     .col-handle:hover,
     .col-handle.active {
-      background: rgba(74, 144, 217, 0.35);
+      background: rgba(242, 101, 34, 0.25);
     }
 
     .row-handle:hover,
     .row-handle.active {
-      background: rgba(74, 144, 217, 0.35);
+      background: rgba(242, 101, 34, 0.25);
     }
 
     /* ── Student picker modal ────────────────────────────────────────────── */
@@ -1290,14 +1290,14 @@
     </div>
     <div class="setup-box">
       <h2>Google Classroom Seating Chart</h2>
-      <p style="font-size:13px;color:#888;margin-bottom:1.25rem;">Connect your Google account to load your class rosters
+      <p style="font-size:13px;color:#5f6368;margin-bottom:1.25rem;">Connect your Google account to load your class rosters
         and build seating arrangements.</p>
       <button class="btn-connect" id="connectBtn" onclick="initGIS()">Connect with Google</button>
       <div class="token-note">Read-only access — your data never leaves your browser.</div>
       <div id="authError" style="font-size:13px;color:#ef4444;margin-top:10px;display:none;"></div>
     </div>
     <div style="margin-top:1.5rem;">
-      <a href="index.html" style="font-size:13px;color:#888;text-decoration:none;">← Back to GCDash</a>
+      <a href="index.html" style="font-size:13px;color:#5f6368;text-decoration:none;">← Back to GCDash</a>
     </div>
   </div>
 
