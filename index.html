@@ -35,12 +35,6 @@
         transform: rotate(360deg);
       }
     }
-
-    @media (orientation: portrait) and (max-width: 768px) {
-      .col-earned {
-        display: none;
-      }
-    }
   </style>
 </head>
 
@@ -66,7 +60,7 @@
     <div class="setup-box" id="setup-section">
       <h2>Google Classroom Dashboard</h2>
       <p style="font-size:13px;color:#5f6368;margin-bottom:1.25rem;">Connect your Google account to view course outlines,
-        assignments, materials, and monitor student progress.</p>
+        assignments and materials.</p>
       <button class="btn btn-primary" id="connect-btn" onclick="connectGoogle()">Connect with Google</button>
       <div class="token-note">Read-only access — your data never leaves your browser.</div>
       <div class="status" id="auth-status"></div>
@@ -97,8 +91,6 @@
       <div class="tabs" id="course-tabs"></div>
       <div id="course-tab-panels"></div>
       <div class="actions">
-        <button class="btn btn-success" id="monitor-btn" onclick="monitorSelected()" disabled>Monitor student
-          progress</button>
         <button class="btn btn-primary" id="fetch-btn" onclick="fetchSelected()" disabled>Fetch assignments &amp;
           materials</button>
         <button class="btn btn-primary" id="dl-all-btn" onclick="downloadAllMd()">Download all as .md</button>
