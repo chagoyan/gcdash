@@ -167,8 +167,10 @@ async function fetchSelected() {
 		).catch(() => ({ topic: [] }));
 
 		const topicMap = {};
+		const topicOrder = [];
 		(tpData.topic || []).forEach((t) => {
 			topicMap[t.topicId] = t.name;
+			topicOrder.push(t.topicId);
 		});
 		const assignments = (awData.courseWork || [])
 			.slice()
@@ -177,7 +179,7 @@ async function fetchSelected() {
 			.slice()
 			.sort((a, b) => toTimestamp(a) - toTimestamp(b));
 
-		courseData[selectedId] = { assignments, materials, topicMap };
+		courseData[selectedId] = { assignments, materials, topicMap, topicOrder };
 		setStatus('fetch-status', 'Done!', 'success');
 		showDetail(selectedId);
 	} catch (e) {
@@ -791,13 +793,13 @@ function selectCourse(id) {
 
 function showDetail(courseId) {
 	const course = courses.find((c) => c.id === courseId);
-	const { assignments, materials, topicMap } = courseData[courseId];
+	const { assignments, materials, topicMap, topicOrder } = courseData[courseId];
 
 	document.getElementById('detail-title').textContent = course.name;
 	document.getElementById('detail-body').innerHTML = '';
 	document.getElementById('detail-actions').style.display = 'flex';
 
-	const merged = mergeByTopic(assignments, materials, topicMap);
+	const merged = mergeByTopic(assignments, materials, topicMap, topicOrder);
 
 	// Apply saved topic order
 	const savedOrder = getTopicOrder(courseId);
@@ -1370,7 +1372,7 @@ function openPrintView(mode) {
 }
 
 function buildPrintHtml(course, data, mode) {
-	const merged = mergeByTopic(data.assignments, data.materials, data.topicMap);
+	const merged = mergeByTopic(data.assignments, data.materials, data.topicMap, data.topicOrder);
 	const savedOrder = getTopicOrder(course.id);
 	if (savedOrder) {
 		merged.sort((a, b) => {
@@ -1509,7 +1511,7 @@ function courseToMd(c, data) {
 	lines.push('');
 
 	if (data) {
-		mergeByTopic(data.assignments, data.materials, data.topicMap || {}).forEach(
+		mergeByTopic(data.assignments, data.materials, data.topicMap || {}, data.topicOrder || []).forEach(
 			(g) => {
 				lines.push('## ' + g.topicName);
 				lines.push('');
@@ -1563,7 +1565,7 @@ function courseToMd(c, data) {
    Helpers
    ------------------------------------------------------------ */
 
-function mergeByTopic(assignments, materials, topicMap) {
+function mergeByTopic(assignments, materials, topicMap, topicOrder = []) {
 	const groups = {};
 	assignments.forEach((a) => {
 		const tid = a.topicId || '__none__';
@@ -1586,14 +1588,12 @@ function mergeByTopic(assignments, materials, topicMap) {
 		.sort((a, b) => {
 			if (a.topicId === '__none__') return 1;
 			if (b.topicId === '__none__') return -1;
-			const aw = /^week\d+/i.test(a.topicName),
-				bw = /^week\d+/i.test(b.topicName);
-			if (!aw && bw) return -1;
-			if (aw && !bw) return 1;
-			return a.topicName.localeCompare(b.topicName, undefined, {
-				numeric: true,
-				sensitivity: 'base',
-			});
+			const ai = topicOrder.indexOf(a.topicId);
+			const bi = topicOrder.indexOf(b.topicId);
+			if (ai === -1 && bi === -1) return 0;
+			if (ai === -1) return 1;
+			if (bi === -1) return -1;
+			return ai - bi;
 		});
 }
 
