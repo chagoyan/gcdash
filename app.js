@@ -812,7 +812,10 @@ function showDetail(courseId) {
 		});
 	}
 
-	const collapsedSet = getTopicCollapsed(courseId);
+	const hasSavedCollapse = localStorage.getItem('topic-collapsed-' + courseId) !== null;
+	const collapsedSet = hasSavedCollapse
+		? getTopicCollapsed(courseId)
+		: new Set(merged.map((g) => g.topicId));
 	const body = document.getElementById('detail-body');
 
 	if (!merged.length) {
@@ -1368,6 +1371,17 @@ function openPrintView(mode) {
 
 function buildPrintHtml(course, data, mode) {
 	const merged = mergeByTopic(data.assignments, data.materials, data.topicMap);
+	const savedOrder = getTopicOrder(course.id);
+	if (savedOrder) {
+		merged.sort((a, b) => {
+			const ai = savedOrder.indexOf(a.topicId);
+			const bi = savedOrder.indexOf(b.topicId);
+			if (ai === -1 && bi === -1) return 0;
+			if (ai === -1) return 1;
+			if (bi === -1) return -1;
+			return ai - bi;
+		});
+	}
 	const isSummary = mode === 'summary';
 	let body = '';
 
