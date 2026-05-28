@@ -294,13 +294,23 @@ function mergeSettings(settings) {
 		existing.metaLabels = settings.seatingMetaLabels;
 		localStorage.setItem('gcdash-seating-settings', JSON.stringify(existing));
 	}
+	if (settings.topicOrders)
+		Object.entries(settings.topicOrders).forEach(([id, order]) =>
+			localStorage.setItem('topic-order-' + id, JSON.stringify(order)),
+		);
+	if (settings.topicCollapsed)
+		Object.entries(settings.topicCollapsed).forEach(([id, collapsed]) =>
+			localStorage.setItem('topic-collapsed-' + id, JSON.stringify(collapsed)),
+		);
 	if (courses.length) renderCourses();
 }
 
 function collectSettings() {
 	const courseColors = {},
 		courseOrder = {},
-		seatingLayouts = {};
+		seatingLayouts = {},
+		topicOrders = {},
+		topicCollapsed = {};
 	for (let i = 0; i < localStorage.length; i++) {
 		const key = localStorage.key(i);
 		if (key.startsWith('course-color-'))
@@ -310,6 +320,10 @@ function collectSettings() {
 			courseOrder[key.replace('course-order-', '')] = JSON.parse(
 				localStorage.getItem(key),
 			);
+		if (key.startsWith('topic-order-'))
+			try { topicOrders[key.replace('topic-order-', '')] = JSON.parse(localStorage.getItem(key)); } catch {}
+		if (key.startsWith('topic-collapsed-'))
+			try { topicCollapsed[key.replace('topic-collapsed-', '')] = JSON.parse(localStorage.getItem(key)); } catch {}
 		if (
 			key.startsWith('gcdash-seating-') &&
 			!key.includes('rooms') &&
@@ -345,6 +359,8 @@ function collectSettings() {
 		seatingLayouts,
 		roomLayouts,
 		seatingMetaLabels,
+		topicOrders,
+		topicCollapsed,
 		updatedAt: new Date().toISOString(),
 	};
 }
@@ -783,60 +799,209 @@ function showDetail(courseId) {
 
 	const merged = mergeByTopic(assignments, materials, topicMap);
 
-	if (merged.length) {
+	// Apply saved topic order
+	const savedOrder = getTopicOrder(courseId);
+	if (savedOrder) {
+		merged.sort((a, b) => {
+			const ai = savedOrder.indexOf(a.topicId);
+			const bi = savedOrder.indexOf(b.topicId);
+			if (ai === -1 && bi === -1) return 0;
+			if (ai === -1) return 1;
+			if (bi === -1) return -1;
+			return ai - bi;
+		});
+	}
+
+	const collapsedSet = getTopicCollapsed(courseId);
+	const body = document.getElementById('detail-body');
+
+	if (!merged.length) {
+		body.innerHTML = `<div class="empty-note">No assignments or materials found.</div>`;
+	} else {
+		// Expand All / Collapse All controls
+		if (merged.length > 1) {
+			const controls = document.createElement('div');
+			controls.className = 'detail-controls';
+			const btnExpand = document.createElement('button');
+			btnExpand.className = 'btn';
+			btnExpand.textContent = 'Expand all';
+			btnExpand.onclick = () => expandAllTopics(courseId);
+			const btnCollapse = document.createElement('button');
+			btnCollapse.className = 'btn';
+			btnCollapse.textContent = 'Collapse all';
+			btnCollapse.onclick = () => collapseAllTopics(courseId);
+			controls.appendChild(btnExpand);
+			controls.appendChild(btnCollapse);
+			body.appendChild(controls);
+		}
+
+		let dragSrc = null;
+
 		merged.forEach((g) => {
 			const block = document.createElement('div');
-			block.className = 'topic-block';
-			block.innerHTML = `<div class="topic-label">${esc(g.topicName)}</div>`;
+			block.className = 'topic-block' + (collapsedSet.has(g.topicId) ? ' collapsed' : '');
+			block.dataset.topicId = g.topicId;
+
+			// Header
+			const header = document.createElement('div');
+			header.className = 'topic-label';
+
+			const handle = document.createElement('span');
+			handle.className = 'topic-handle';
+			handle.textContent = '⠿';
+			handle.title = 'Drag to reorder';
+
+			const nameEl = document.createElement('span');
+			nameEl.className = 'topic-name';
+			nameEl.textContent = g.topicName;
+
+			const chevron = document.createElement('span');
+			chevron.className = 'topic-chevron';
+			chevron.textContent = '▼';
+
+			header.appendChild(handle);
+			header.appendChild(nameEl);
+			header.appendChild(chevron);
+
+			// Click header to toggle (not the handle)
+			header.addEventListener('click', (e) => {
+				if (handle.contains(e.target)) return;
+				block.classList.toggle('collapsed');
+				saveTopicCollapsed(courseId);
+				debouncedSave();
+			});
+
+			block.appendChild(header);
+
+			// Content wrapper
+			const content = document.createElement('div');
+			content.className = 'topic-content';
 
 			if (g.assignments.length) {
 				const lbl = document.createElement('div');
 				lbl.className = 'section-heading';
 				lbl.textContent = 'Assignments';
-				block.appendChild(lbl);
+				content.appendChild(lbl);
 				const ul = document.createElement('ul');
 				ul.className = 'item-list';
 				g.assignments.forEach((a) => {
 					const li = document.createElement('li');
 					li.innerHTML = `
-            <div class="item-title">${esc(a.title)}</div>
-            <div class="item-meta">${a.dueDate ? 'Due: ' + fmtDate(a.dueDate) : 'No due date'}${a.maxPoints ? ' · ' + a.maxPoints + ' pts' : ''}</div>
-            ${a.description ? '<div class="item-desc">' + esc(a.description.slice(0, 120)) + (a.description.length > 120 ? '…' : '') + '</div>' : ''}
-            ${renderAttachments(a.materials)}`;
+						<div class="item-title">${esc(a.title)}</div>
+						<div class="item-meta">${a.dueDate ? 'Due: ' + fmtDate(a.dueDate) : 'No due date'}${a.maxPoints ? ' · ' + a.maxPoints + ' pts' : ''}</div>
+						${a.description ? '<div class="item-desc">' + esc(a.description.slice(0, 120)) + (a.description.length > 120 ? '…' : '') + '</div>' : ''}
+						${renderAttachments(a.materials)}`;
 					ul.appendChild(li);
 				});
-				block.appendChild(ul);
+				content.appendChild(ul);
 			}
 
 			if (g.materials.length) {
 				const lbl = document.createElement('div');
 				lbl.className = 'section-heading';
 				lbl.textContent = 'Materials';
-				block.appendChild(lbl);
+				content.appendChild(lbl);
 				const ul = document.createElement('ul');
 				ul.className = 'item-list';
 				g.materials.forEach((m) => {
 					const li = document.createElement('li');
 					li.innerHTML = `
-            <div class="item-title">${esc(m.title)}</div>
-            ${m.description ? '<div class="item-desc">' + esc(m.description.slice(0, 120)) + (m.description.length > 120 ? '…' : '') + '</div>' : ''}
-            ${renderAttachments(m.materials)}`;
+						<div class="item-title">${esc(m.title)}</div>
+						${m.description ? '<div class="item-desc">' + esc(m.description.slice(0, 120)) + (m.description.length > 120 ? '…' : '') + '</div>' : ''}
+						${renderAttachments(m.materials)}`;
 					ul.appendChild(li);
 				});
-				block.appendChild(ul);
+				content.appendChild(ul);
 			}
 
-			document.getElementById('detail-body').appendChild(block);
+			block.appendChild(content);
+
+			// Drag — only initiates from handle
+			handle.addEventListener('mousedown', () => {
+				block.draggable = true;
+				if (!block.classList.contains('collapsed')) {
+					block.classList.add('collapsed');
+					saveTopicCollapsed(courseId);
+				}
+			});
+
+			block.addEventListener('dragstart', (e) => {
+				dragSrc = block;
+				e.dataTransfer.effectAllowed = 'move';
+				setTimeout(() => block.classList.add('dragging'), 0);
+			});
+
+			block.addEventListener('dragend', () => {
+				block.draggable = false;
+				block.classList.remove('dragging');
+				body.querySelectorAll('.topic-block').forEach(b => b.classList.remove('drag-over'));
+				saveTopicOrder(courseId);
+				debouncedSave();
+			});
+
+			block.addEventListener('dragover', (e) => {
+				e.preventDefault();
+				if (dragSrc && dragSrc !== block) block.classList.add('drag-over');
+			});
+
+			block.addEventListener('dragleave', () => block.classList.remove('drag-over'));
+
+			block.addEventListener('drop', (e) => {
+				e.preventDefault();
+				block.classList.remove('drag-over');
+				if (!dragSrc || dragSrc === block) return;
+				const blocks = [...body.querySelectorAll('.topic-block')];
+				const si = blocks.indexOf(dragSrc);
+				const ti = blocks.indexOf(block);
+				body.insertBefore(dragSrc, si < ti ? block.nextSibling : block);
+			});
+
+			body.appendChild(block);
 		});
-	} else {
-		document.getElementById('detail-body').innerHTML =
-			`<div class="empty-note">No assignments or materials found.</div>`;
 	}
 
 	document.getElementById('detail-section').style.display = 'block';
-	document
-		.getElementById('detail-section')
-		.scrollIntoView({ behavior: 'smooth' });
+	document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* Topic order & collapse state helpers */
+function getTopicOrder(courseId) {
+	try {
+		const s = localStorage.getItem('topic-order-' + courseId);
+		return s ? JSON.parse(s) : null;
+	} catch { return null; }
+}
+
+function saveTopicOrder(courseId) {
+	const body = document.getElementById('detail-body');
+	const order = [...body.querySelectorAll('.topic-block')].map(b => b.dataset.topicId);
+	localStorage.setItem('topic-order-' + courseId, JSON.stringify(order));
+}
+
+function getTopicCollapsed(courseId) {
+	try {
+		const s = localStorage.getItem('topic-collapsed-' + courseId);
+		return s ? new Set(JSON.parse(s)) : new Set();
+	} catch { return new Set(); }
+}
+
+function saveTopicCollapsed(courseId) {
+	const body = document.getElementById('detail-body');
+	if (!body) return;
+	const collapsed = [...body.querySelectorAll('.topic-block.collapsed')].map(b => b.dataset.topicId);
+	localStorage.setItem('topic-collapsed-' + courseId, JSON.stringify(collapsed));
+}
+
+function expandAllTopics(courseId) {
+	document.querySelectorAll('#detail-body .topic-block').forEach(b => b.classList.remove('collapsed'));
+	saveTopicCollapsed(courseId);
+	debouncedSave();
+}
+
+function collapseAllTopics(courseId) {
+	document.querySelectorAll('#detail-body .topic-block').forEach(b => b.classList.add('collapsed'));
+	saveTopicCollapsed(courseId);
+	debouncedSave();
 }
 
 function closeDetail() {
