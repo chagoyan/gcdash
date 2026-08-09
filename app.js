@@ -12,6 +12,13 @@ let selectedId = null;
 let courseData = {};
 let activeTab = 'ACTIVE';
 let showOwnedOnly = true;
+let combineMode = localStorage.getItem('gcdash-combine-enabled') === '1';
+let combineIds = [];
+try {
+	combineIds = JSON.parse(localStorage.getItem('gcdash-combine-ids') || '[]');
+} catch {
+	combineIds = [];
+}
 
 /* ------------------------------------------------------------
    UI Utilities
@@ -141,44 +148,47 @@ async function fetchCourses() {
 	}
 }
 
+async function fetchCourseData(courseId) {
+	const awData = await apiGet(
+		`https://classroom.googleapis.com/v1/courses/${courseId}/courseWork?pageSize=100&orderBy=dueDate asc`,
+	).catch((e) => {
+		throw new Error('Assignments: ' + e.message);
+	});
+	const mwData = await apiGet(
+		`https://classroom.googleapis.com/v1/courses/${courseId}/courseWorkMaterials?pageSize=100`,
+	).catch((e) => {
+		throw new Error('Materials: ' + e.message);
+	});
+	const tpData = await apiGet(
+		`https://classroom.googleapis.com/v1/courses/${courseId}/topics?pageSize=100`,
+	).catch(() => ({ topic: [] }));
+
+	const topicMap = {};
+	const topicOrder = [];
+	(tpData.topic || []).forEach((t) => {
+		topicMap[t.topicId] = t.name;
+		topicOrder.push(t.topicId);
+	});
+	const assignments = (awData.courseWork || [])
+		.slice()
+		.sort((a, b) => toTimestamp(a) - toTimestamp(b));
+	const materials = (mwData.courseWorkMaterial || [])
+		.slice()
+		.sort((a, b) => toTimestamp(a) - toTimestamp(b));
+
+	courseData[courseId] = { assignments, materials, topicMap, topicOrder };
+}
+
 async function fetchSelected() {
+	if (combineMode) return fetchCombined();
 	if (!selectedId) return;
 	const btn = document.getElementById('fetch-btn');
 	btn.disabled = true;
 	btn.textContent = 'Fetching…';
 
 	try {
-		setStatus('fetch-status', 'Fetching assignments…', 'info');
-		const awData = await apiGet(
-			`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWork?pageSize=100&orderBy=dueDate asc`,
-		).catch((e) => {
-			throw new Error('Assignments: ' + e.message);
-		});
-		setStatus('fetch-status', 'Fetching materials…', 'info');
-		const mwData = await apiGet(
-			`https://classroom.googleapis.com/v1/courses/${selectedId}/courseWorkMaterials?pageSize=100`,
-		).catch((e) => {
-			throw new Error('Materials: ' + e.message);
-		});
-		setStatus('fetch-status', 'Fetching topics…', 'info');
-		const tpData = await apiGet(
-			`https://classroom.googleapis.com/v1/courses/${selectedId}/topics?pageSize=100`,
-		).catch(() => ({ topic: [] }));
-
-		const topicMap = {};
-		const topicOrder = [];
-		(tpData.topic || []).forEach((t) => {
-			topicMap[t.topicId] = t.name;
-			topicOrder.push(t.topicId);
-		});
-		const assignments = (awData.courseWork || [])
-			.slice()
-			.sort((a, b) => toTimestamp(a) - toTimestamp(b));
-		const materials = (mwData.courseWorkMaterial || [])
-			.slice()
-			.sort((a, b) => toTimestamp(a) - toTimestamp(b));
-
-		courseData[selectedId] = { assignments, materials, topicMap, topicOrder };
+		setStatus('fetch-status', 'Fetching assignments, materials & topics…', 'info');
+		await fetchCourseData(selectedId);
 		setStatus('fetch-status', 'Done!', 'success');
 		showDetail(selectedId);
 	} catch (e) {
@@ -186,6 +196,33 @@ async function fetchSelected() {
 	}
 
 	btn.disabled = false;
+	btn.textContent = 'Fetch assignments & materials';
+}
+
+async function fetchCombined() {
+	if (combineIds.length < 2) return;
+	const btn = document.getElementById('fetch-btn');
+	btn.disabled = true;
+	btn.textContent = 'Fetching…';
+
+	try {
+		for (let i = 0; i < combineIds.length; i++) {
+			const id = combineIds[i];
+			const course = courses.find((c) => c.id === id);
+			setStatus(
+				'fetch-status',
+				`Fetching ${course ? course.name : id}… (${i + 1}/${combineIds.length})`,
+				'info',
+			);
+			await fetchCourseData(id);
+		}
+		setStatus('fetch-status', 'Done!', 'success');
+		showCombinedDetail(combineIds);
+	} catch (e) {
+		setStatus('fetch-status', 'Error: ' + e.message, 'error');
+	}
+
+	updateFetchButtonState();
 	btn.textContent = 'Fetch assignments & materials';
 }
 
@@ -303,6 +340,14 @@ function mergeSettings(settings) {
 		Object.entries(settings.topicCollapsed).forEach(([id, collapsed]) =>
 			localStorage.setItem('topic-collapsed-' + id, JSON.stringify(collapsed)),
 		);
+	if (settings.combineEnabled !== undefined) {
+		combineMode = !!settings.combineEnabled;
+		localStorage.setItem('gcdash-combine-enabled', combineMode ? '1' : '0');
+	}
+	if (settings.combineIds) {
+		combineIds = settings.combineIds;
+		localStorage.setItem('gcdash-combine-ids', JSON.stringify(combineIds));
+	}
 	if (courses.length) renderCourses();
 }
 
@@ -362,6 +407,8 @@ function collectSettings() {
 		seatingMetaLabels,
 		topicOrders,
 		topicCollapsed,
+		combineEnabled: localStorage.getItem('gcdash-combine-enabled') === '1',
+		combineIds: JSON.parse(localStorage.getItem('gcdash-combine-ids') || '[]'),
 		updatedAt: new Date().toISOString(),
 	};
 }
@@ -720,15 +767,27 @@ function renderCourses() {
 
 		applyOrder(groups[t.key], t.key).forEach((c) => {
 			const div = document.createElement('div');
-			div.className = 'course-card' + (c.id === selectedId ? ' selected' : '');
+			const combineIdx = combineIds.indexOf(c.id);
+			div.className =
+				'course-card' +
+				(!combineMode && c.id === selectedId ? ' selected' : '') +
+				(combineMode && combineIdx !== -1 ? ' combine-picked' : '');
 			div.dataset.id = c.id;
-			div.onclick = () => selectCourse(c.id);
+			div.onclick = () =>
+				combineMode ? toggleCombineCourse(c.id) : selectCourse(c.id);
 
 			const saved = getCourseColor(c.id);
 			applyCardColor(div, saved);
-			if (c.id === selectedId) div.style.border = '3px solid #F26522';
+			if (!combineMode && c.id === selectedId) div.style.border = '3px solid #F26522';
 
 			div.innerHTML = `<h3>${esc(c.name)}</h3><div class="meta">${esc(c.section || '')}${c.room ? ' · ' + esc(c.room) : ''}</div>`;
+
+			if (combineMode && combineIdx !== -1) {
+				const badge = document.createElement('div');
+				badge.className = 'combine-badge';
+				badge.textContent = combineIdx + 1;
+				div.appendChild(badge);
+			}
 
 			const colorBtn = document.createElement('div');
 			colorBtn.className = 'color-picker-btn';
@@ -744,6 +803,10 @@ function renderCourses() {
 		enableDragAndDrop(grid, t.key);
 		panelsEl.appendChild(panel);
 	});
+
+	const combineToggle = document.getElementById('combine-toggle');
+	if (combineToggle) combineToggle.checked = combineMode;
+	updateFetchButtonState();
 }
 
 function switchTab(key) {
@@ -768,7 +831,7 @@ function selectCourse(id) {
 				? '3px solid #F26522'
 				: hasColor ? '1px solid #5f6368' : '';
 	});
-	document.getElementById('fetch-btn').disabled = false;
+	updateFetchButtonState();
 	// Only show Seating Chart button for ACTIVE courses
 	const course = courses.find((c) => c.id === id);
 	const seatingBtn = document.getElementById('seating-btn');
@@ -786,17 +849,83 @@ function selectCourse(id) {
 }
 
 /* ------------------------------------------------------------
+   Combine Classrooms
+   ------------------------------------------------------------ */
+
+function toggleCombineMode(checked) {
+	combineMode = checked;
+	localStorage.setItem('gcdash-combine-enabled', checked ? '1' : '0');
+	debouncedSave();
+	renderCourses();
+}
+
+function toggleCombineCourse(id) {
+	const idx = combineIds.indexOf(id);
+	if (idx === -1) combineIds.push(id);
+	else combineIds.splice(idx, 1);
+	localStorage.setItem('gcdash-combine-ids', JSON.stringify(combineIds));
+	debouncedSave();
+	renderCourses();
+}
+
+function updateFetchButtonState() {
+	const btn = document.getElementById('fetch-btn');
+	if (!btn) return;
+	if (combineMode) {
+		btn.disabled = combineIds.length < 2;
+		const seatingBtn = document.getElementById('seating-btn');
+		if (seatingBtn) seatingBtn.style.display = 'none';
+	} else {
+		btn.disabled = !selectedId;
+	}
+}
+
+/* ------------------------------------------------------------
    Detail Panel
    ------------------------------------------------------------ */
 
 function showDetail(courseId) {
 	const course = courses.find((c) => c.id === courseId);
-	const { assignments, materials, topicMap, topicOrder } = courseData[courseId];
 
 	document.getElementById('detail-title').textContent = course.name;
 	document.getElementById('detail-body').innerHTML = '';
 	document.getElementById('detail-actions').style.display = 'flex';
 
+	const body = document.getElementById('detail-body');
+	renderCourseTopics(body, courseId, courseData[courseId]);
+
+	document.getElementById('detail-section').style.display = 'block';
+	document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showCombinedDetail(ids) {
+	document.getElementById('detail-title').textContent = 'Combined Outline';
+	document.getElementById('detail-actions').style.display = 'flex';
+
+	const body = document.getElementById('detail-body');
+	body.innerHTML = '';
+
+	ids.forEach((id) => {
+		const course = courses.find((c) => c.id === id);
+		const heading = document.createElement('div');
+		heading.className = 'combine-course-heading';
+		heading.textContent = course ? course.name : id;
+		body.appendChild(heading);
+
+		const section = document.createElement('div');
+		section.className = 'combine-course-section';
+		body.appendChild(section);
+
+		renderCourseTopics(section, id, courseData[id]);
+	});
+
+	document.getElementById('detail-section').style.display = 'block';
+	document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderCourseTopics(body, courseId, data) {
+	body.dataset.courseId = courseId;
+	const { assignments, materials, topicMap, topicOrder } = data;
 	const merged = mergeByTopic(assignments, materials, topicMap, topicOrder);
 
 	// Apply saved topic order
@@ -816,7 +945,6 @@ function showDetail(courseId) {
 	const collapsedSet = hasSavedCollapse
 		? getTopicCollapsed(courseId)
 		: new Set(merged.map((g) => g.topicId));
-	const body = document.getElementById('detail-body');
 
 	if (!merged.length) {
 		body.innerHTML = `<div class="empty-note">No assignments or materials found.</div>`;
@@ -962,9 +1090,6 @@ function showDetail(courseId) {
 			body.appendChild(block);
 		});
 	}
-
-	document.getElementById('detail-section').style.display = 'block';
-	document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' });
 }
 
 /* Topic order & collapse state helpers */
@@ -975,8 +1100,13 @@ function getTopicOrder(courseId) {
 	} catch { return null; }
 }
 
+function getCourseTopicContainer(courseId) {
+	return document.querySelector('[data-course-id="' + courseId + '"]') ||
+		document.getElementById('detail-body');
+}
+
 function saveTopicOrder(courseId) {
-	const body = document.getElementById('detail-body');
+	const body = getCourseTopicContainer(courseId);
 	const order = [...body.querySelectorAll('.topic-block')].map(b => b.dataset.topicId);
 	localStorage.setItem('topic-order-' + courseId, JSON.stringify(order));
 }
@@ -989,20 +1119,20 @@ function getTopicCollapsed(courseId) {
 }
 
 function saveTopicCollapsed(courseId) {
-	const body = document.getElementById('detail-body');
+	const body = getCourseTopicContainer(courseId);
 	if (!body) return;
 	const collapsed = [...body.querySelectorAll('.topic-block.collapsed')].map(b => b.dataset.topicId);
 	localStorage.setItem('topic-collapsed-' + courseId, JSON.stringify(collapsed));
 }
 
 function expandAllTopics(courseId) {
-	document.querySelectorAll('#detail-body .topic-block').forEach(b => b.classList.remove('collapsed'));
+	getCourseTopicContainer(courseId).querySelectorAll('.topic-block').forEach(b => b.classList.remove('collapsed'));
 	saveTopicCollapsed(courseId);
 	debouncedSave();
 }
 
 function collapseAllTopics(courseId) {
-	document.querySelectorAll('#detail-body .topic-block').forEach(b => b.classList.add('collapsed'));
+	getCourseTopicContainer(courseId).querySelectorAll('.topic-block').forEach(b => b.classList.add('collapsed'));
 	saveTopicCollapsed(courseId);
 	debouncedSave();
 }
@@ -1017,6 +1147,17 @@ function closeDetail() {
    ------------------------------------------------------------ */
 
 function openPrintView(mode) {
+	if (combineMode) {
+		if (combineIds.length < 2) return;
+		const list = combineIds
+			.map((id) => ({ course: courses.find((c) => c.id === id), data: courseData[id] }))
+			.filter((x) => x.course && x.data);
+		if (list.length < 2) return;
+		const w = window.open('', '_blank');
+		w.document.write(buildCombinedPrintHtml(list, mode));
+		w.document.close();
+		return;
+	}
 	const course = courses.find((c) => c.id === selectedId);
 	if (!course) return;
 	const data = courseData[selectedId];
@@ -1026,7 +1167,19 @@ function openPrintView(mode) {
 	w.document.close();
 }
 
-function buildPrintHtml(course, data, mode) {
+function renderCourseHeaderHtml(course, mode) {
+	const isSummary = mode === 'summary';
+	return `<div class="course-header">
+    <span class="mode-label">${isSummary ? 'Summary Outline' : 'Detailed Outline'}</span>
+    <h1>${escHtml(course.name)}</h1>
+    <div class="course-meta">
+      ${course.section ? escHtml(course.section) : ''}${course.room ? ' &nbsp;·&nbsp; Room ' + escHtml(course.room) : ''}
+      ${course.description ? '<br><em>' + escHtml(course.description) + '</em>' : ''}
+    </div>
+  </div>`;
+}
+
+function renderTopicBlocksHtml(course, data, mode) {
 	const merged = mergeByTopic(data.assignments, data.materials, data.topicMap, data.topicOrder);
 	const savedOrder = getTopicOrder(course.id);
 	if (savedOrder) {
@@ -1069,12 +1222,10 @@ function buildPrintHtml(course, data, mode) {
 		body += `</div>`;
 	});
 
-	return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>${escHtml(course.name)} — ${isSummary ? 'Summary' : 'Detailed'} Outline</title>
-<style>
+	return body;
+}
+
+const PRINT_STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Georgia, serif; color: #111; max-width: 780px; margin: 0 auto; padding: 2rem; }
   .no-print { margin-bottom: 1.5rem; }
@@ -1089,14 +1240,30 @@ function buildPrintHtml(course, data, mode) {
   .topic-heading { font-size: 14px; font-weight: 700; color: #fff; background: #F26522; padding: 6px 12px; border-radius: 6px; margin-bottom: 10px; display: inline-block; }
   .sub-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin: 8px 0 6px; }
   ul { list-style: none; padding-left: 0; }
-  li.assignment-item { border: 1px solid #e0e0e0; border-radius: 8px; padding: ${isSummary ? '6px 12px' : '10px 14px'}; margin-bottom: 6px; page-break-inside: avoid; background: #fafafa; }
-  .item-title { font-size: ${isSummary ? '13px' : '14px'}; font-weight: 600; color: #111; }
+  li.assignment-item { border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 14px; margin-bottom: 6px; page-break-inside: avoid; background: #fafafa; }
+  .item-title { font-size: 14px; font-weight: 600; color: #111; }
   .pts { font-size: 12px; font-weight: 400; color: #F26522; margin-left: 6px; }
   .item-desc { font-size: 13px; color: #444; margin-top: 4px; line-height: 1.5; white-space: pre-wrap; }
   .item-attachments { margin-top: 6px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
   .item-attachments a { color: #F26522; text-decoration: none; }
   .footer { margin-top: 3rem; font-size: 11px; color: #aaa; border-top: 0.5px solid #eee; padding-top: 8px; }
+  .combine-section + .combine-section { page-break-before: always; margin-top: 2rem; }
   @media print { body { padding: 1rem; } .topic-heading { background: #F26522 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } li.assignment-item { background: #fff !important; } }
+`;
+
+function buildPrintHtml(course, data, mode) {
+	const isSummary = mode === 'summary';
+	const body = renderTopicBlocksHtml(course, data, mode);
+
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${escHtml(course.name)} — ${isSummary ? 'Summary' : 'Detailed'} Outline</title>
+<style>
+  ${PRINT_STYLES}
+  li.assignment-item { padding: ${isSummary ? '6px 12px' : '10px 14px'}; }
+  .item-title { font-size: ${isSummary ? '13px' : '14px'}; }
 </style>
 </head>
 <body>
@@ -1104,15 +1271,41 @@ function buildPrintHtml(course, data, mode) {
     <button onclick="window.print()">Print</button>
     <button class="secondary" onclick="window.close()">Close</button>
   </div>
-  <div class="course-header">
-    <span class="mode-label">${isSummary ? 'Summary Outline' : 'Detailed Outline'}</span>
-    <h1>${escHtml(course.name)}</h1>
-    <div class="course-meta">
-      ${course.section ? escHtml(course.section) : ''}${course.room ? ' &nbsp;·&nbsp; Room ' + escHtml(course.room) : ''}
-      ${course.description ? '<br><em>' + escHtml(course.description) + '</em>' : ''}
-    </div>
-  </div>
+  ${renderCourseHeaderHtml(course, mode)}
   ${body}
+  <div class="footer">Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+</body>
+</html>`;
+}
+
+function buildCombinedPrintHtml(list, mode) {
+	const isSummary = mode === 'summary';
+	const title = list.map((x) => x.course.name).join(' + ');
+
+	const sections = list
+		.map(
+			(x) =>
+				`<div class="combine-section">${renderCourseHeaderHtml(x.course, mode)}${renderTopicBlocksHtml(x.course, x.data, mode)}</div>`,
+		)
+		.join('');
+
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${escHtml(title)} — ${isSummary ? 'Summary' : 'Detailed'} Outline</title>
+<style>
+  ${PRINT_STYLES}
+  li.assignment-item { padding: ${isSummary ? '6px 12px' : '10px 14px'}; }
+  .item-title { font-size: ${isSummary ? '13px' : '14px'}; }
+</style>
+</head>
+<body>
+  <div class="no-print">
+    <button onclick="window.print()">Print</button>
+    <button class="secondary" onclick="window.close()">Close</button>
+  </div>
+  ${sections}
   <div class="footer">Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
 </body>
 </html>`;
@@ -1123,6 +1316,17 @@ function buildPrintHtml(course, data, mode) {
    ------------------------------------------------------------ */
 
 function downloadSelectedMd() {
+	if (combineMode && combineIds.length >= 2) {
+		const list = combineIds
+			.map((id) => ({ course: courses.find((x) => x.id === id), data: courseData[id] }))
+			.filter((x) => x.course && x.data);
+		if (list.length < 2) return;
+		download(
+			'combined-' + slugify(list.map((x) => x.course.name).join('-')) + '.md',
+			combinedCoursesToMd(list),
+		);
+		return;
+	}
 	const c = courses.find((x) => x.id === selectedId);
 	if (!c) return;
 	download(slugify(c.name) + '.md', courseToMd(c, courseData[selectedId]));
@@ -1165,54 +1369,72 @@ function courseToMd(c, data) {
 	lines.push('---');
 	lines.push('');
 
-	if (data) {
-		mergeByTopic(data.assignments, data.materials, data.topicMap || {}, data.topicOrder || []).forEach(
-			(g) => {
-				lines.push('## ' + g.topicName);
+	if (data) lines.push(...courseTopicsToMdLines(data));
+	return lines.join('\n');
+}
+
+function courseTopicsToMdLines(data) {
+	const lines = [];
+	mergeByTopic(data.assignments, data.materials, data.topicMap || {}, data.topicOrder || []).forEach(
+		(g) => {
+			lines.push('## ' + g.topicName);
+			lines.push('');
+			if (g.assignments.length) {
+				lines.push('### Assignments');
 				lines.push('');
-				if (g.assignments.length) {
-					lines.push('### Assignments');
+				g.assignments.forEach((a) => {
+					lines.push('#### ' + (a.title || 'Untitled'));
+					if (a.dueDate) lines.push('- **Due:** ' + fmtDate(a.dueDate));
+					if (a.maxPoints) lines.push('- **Points:** ' + a.maxPoints);
+					if (a.description)
+						lines.push(
+							'- **Description:** ' + a.description.replace(/\n/g, ' '),
+						);
+					if (a.alternateLink)
+						lines.push('- **Classroom link:** ' + a.alternateLink);
+					const att = attachmentsToMd(a.materials);
+					if (att.length) {
+						lines.push('- **Attachments:**');
+						att.forEach((l) => lines.push(l));
+					}
 					lines.push('');
-					g.assignments.forEach((a) => {
-						lines.push('#### ' + (a.title || 'Untitled'));
-						if (a.dueDate) lines.push('- **Due:** ' + fmtDate(a.dueDate));
-						if (a.maxPoints) lines.push('- **Points:** ' + a.maxPoints);
-						if (a.description)
-							lines.push(
-								'- **Description:** ' + a.description.replace(/\n/g, ' '),
-							);
-						if (a.alternateLink)
-							lines.push('- **Classroom link:** ' + a.alternateLink);
-						const att = attachmentsToMd(a.materials);
-						if (att.length) {
-							lines.push('- **Attachments:**');
-							att.forEach((l) => lines.push(l));
-						}
-						lines.push('');
-					});
-				}
-				if (g.materials.length) {
-					lines.push('### Materials');
+				});
+			}
+			if (g.materials.length) {
+				lines.push('### Materials');
+				lines.push('');
+				g.materials.forEach((m) => {
+					lines.push('#### ' + (m.title || 'Untitled'));
+					if (m.description)
+						lines.push(
+							'- **Description:** ' + m.description.replace(/\n/g, ' '),
+						);
+					if (m.alternateLink)
+						lines.push('- **Classroom link:** ' + m.alternateLink);
+					const att = attachmentsToMd(m.materials);
+					if (att.length) {
+						lines.push('- **Attachments:**');
+						att.forEach((l) => lines.push(l));
+					}
 					lines.push('');
-					g.materials.forEach((m) => {
-						lines.push('#### ' + (m.title || 'Untitled'));
-						if (m.description)
-							lines.push(
-								'- **Description:** ' + m.description.replace(/\n/g, ' '),
-							);
-						if (m.alternateLink)
-							lines.push('- **Classroom link:** ' + m.alternateLink);
-						const att = attachmentsToMd(m.materials);
-						if (att.length) {
-							lines.push('- **Attachments:**');
-							att.forEach((l) => lines.push(l));
-						}
-						lines.push('');
-					});
-				}
-			},
-		);
-	}
+				});
+			}
+		},
+	);
+	return lines;
+}
+
+function combinedCoursesToMd(list) {
+	const lines = [];
+	lines.push('---');
+	lines.push(`title: "${list.map((x) => x.course.name).join(' + ').replace(/"/g, '\\"')}"`);
+	lines.push('---');
+	lines.push('');
+	list.forEach(({ course, data }) => {
+		lines.push('# ' + (course.name || 'Untitled'));
+		lines.push('');
+		lines.push(...courseTopicsToMdLines(data));
+	});
 	return lines.join('\n');
 }
 

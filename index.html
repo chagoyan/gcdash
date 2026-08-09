@@ -35,6 +35,63 @@
         transform: rotate(360deg);
       }
     }
+
+    .combine-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #3c4043;
+      margin-left: auto;
+      margin-right: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .combine-toggle input {
+      cursor: pointer;
+    }
+
+    .course-card.combine-picked {
+      border: 3px solid #F26522 !important;
+      position: relative;
+    }
+
+    .combine-badge {
+      position: absolute;
+      top: -8px;
+      left: -8px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #F26522;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .combine-course-heading {
+      font-size: 15px;
+      font-weight: 700;
+      color: #F26522;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 1.5rem 0 0.75rem;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #F26522;
+    }
+
+    .combine-course-heading:first-child {
+      margin-top: 0;
+    }
+
+    .combine-course-section {
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 
@@ -86,6 +143,10 @@
     <div class="courses-section" id="courses-section">
       <div class="courses-header">
         <h2>Your courses</h2>
+        <label class="combine-toggle">
+          <input type="checkbox" id="combine-toggle" onchange="toggleCombineMode(this.checked)">
+          Combine Classrooms
+        </label>
         <button class="btn" id="owned-toggle" onclick="toggleOwned()">Showing: My courses</button>
       </div>
       <div class="tabs" id="course-tabs"></div>
