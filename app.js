@@ -19,6 +19,7 @@ try {
 } catch {
 	combineIds = [];
 }
+let selectedTopicBlock = null;
 
 /* ------------------------------------------------------------
    UI Utilities
@@ -888,6 +889,7 @@ function showDetail(courseId) {
 	document.getElementById('detail-title').textContent = course.name;
 	document.getElementById('detail-body').innerHTML = '';
 	document.getElementById('detail-actions').style.display = 'flex';
+	selectedTopicBlock = null;
 
 	const body = document.getElementById('detail-body');
 	renderCourseTopics(body, courseId, courseData[courseId]);
@@ -902,6 +904,7 @@ function showCombinedDetail(ids) {
 
 	const body = document.getElementById('detail-body');
 	body.innerHTML = '';
+	selectedTopicBlock = null;
 
 	ids.forEach((id) => {
 		const course = courses.find((c) => c.id === id);
@@ -984,6 +987,7 @@ function renderCourseTopics(body, courseId, data) {
 			const target = blocks[targetIdx];
 			if (direction < 0) body.insertBefore(block, target);
 			else body.insertBefore(target, block);
+			setSelectedTopicBlock(block);
 			updateMoveButtons();
 			saveTopicOrder(courseId);
 			debouncedSave();
@@ -1045,6 +1049,7 @@ function renderCourseTopics(body, courseId, data) {
 				block.classList.toggle('collapsed');
 				saveTopicCollapsed(courseId);
 				debouncedSave();
+				toggleSelectedTopicBlock(block);
 			});
 
 			block.appendChild(header);
@@ -1139,6 +1144,24 @@ function renderCourseTopics(body, courseId, data) {
 		updateMoveButtons();
 	}
 }
+
+/* Topic selection — highlights the block being moved with the arrow buttons */
+function setSelectedTopicBlock(block) {
+	if (selectedTopicBlock === block) return;
+	if (selectedTopicBlock) selectedTopicBlock.classList.remove('topic-selected');
+	selectedTopicBlock = block;
+	if (selectedTopicBlock) selectedTopicBlock.classList.add('topic-selected');
+}
+
+function toggleSelectedTopicBlock(block) {
+	setSelectedTopicBlock(selectedTopicBlock === block ? null : block);
+}
+
+document.addEventListener('click', (e) => {
+	if (selectedTopicBlock && !e.target.closest('.topic-block')) {
+		setSelectedTopicBlock(null);
+	}
+});
 
 /* Topic order & collapse state helpers */
 function getTopicOrder(courseId) {

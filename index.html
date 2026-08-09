@@ -114,6 +114,29 @@
       opacity: 0.25;
       cursor: default;
     }
+
+    .topic-block.topic-selected {
+      box-shadow: 0 0 0 2px #F26522;
+    }
+
+    .topic-block.topic-selected .topic-label {
+      background: #F26522;
+    }
+
+    .topic-block.topic-selected .topic-name,
+    .topic-block.topic-selected .topic-chevron {
+      color: #fff;
+    }
+
+    .topic-block.topic-selected .topic-move-btn,
+    .topic-block.topic-selected .topic-handle {
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .topic-block.topic-selected .topic-move-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
   </style>
 </head>
 
