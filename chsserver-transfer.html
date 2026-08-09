@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>chsserver01.org → Drive Transfer</title>
+  <link rel="icon" type="image/png" href="logo.png">
+
+  <!-- Google Identity Services — required for OAuth -->
+  <script src="https://accounts.google.com/gsi/client"></script>
+
+  <!-- Config — reuses the same OAuth Client ID as the main GCDash app -->
+  <script src="config.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f7f7f8;
+      color: #202124;
+      margin: 0;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #5f6368;
+      font-size: 13px;
+      margin-bottom: 1.5rem;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #5f6368;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      padding: 9px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      background: #F26522;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #f1c4a3;
+      cursor: default;
+    }
+
+    button.secondary {
+      background: #fff;
+      color: #3c4043;
+      border: 1px solid #ccc;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #5f6368;
+    }
+
+    .status.error { color: #c5221f; }
+    .status.success { color: #188038; }
+
+    #log {
+      margin-top: 1rem;
+      max-height: 320px;
+      overflow-y: auto;
+      background: #202124;
+      color: #d5d5d5;
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: none;
+      white-space: pre-wrap;
+    }
+
+    #log .line-error { color: #ff8a80; }
+    #log .line-ok { color: #8ad4a1; }
+
+    .note {
+      font-size: 12px;
+      color: #5f6368;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="wrap">
+    <h1>chsserver01.org → Google Drive Transfer</h1>
+    <div class="subtitle">
+      One-time tool: finds every Classroom link pointing at a given domain across your Active courses
+      and copies the actual files into Google Drive, organized by course and week.
+    </div>
+
+    <div class="card" id="auth-card">
+      <button id="connect-btn" onclick="connectGoogle()">Connect with Google</button>
+      <div class="status" id="auth-status"></div>
+    </div>
+
+    <div class="card" id="run-card" style="display:none;">
+      <label for="domain-input">Domain to migrate</label>
+      <input type="text" id="domain-input" value="chsserver01.org">
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="include-archived">
+        <label style="margin:0;text-transform:none;font-weight:400;" for="include-archived">
+          Also scan Archived courses (slower — many more courses to check)
+        </label>
+      </div>
+
+      <button id="start-btn" onclick="startTransfer()">Start Transfer</button>
+      <button class="secondary" onclick="toggleLog()" style="margin-left:8px;">Show log</button>
+
+      <div class="status" id="run-status"></div>
+      <div id="log"></div>
+    </div>
+
+    <div class="note">
+      Files are matched only if they're currently linked from an assignment or material in Classroom —
+      this does not touch anything else on the server. The same file linked from multiple courses/weeks
+      is uploaded once and linked into every relevant Drive folder, so nothing is duplicated. If a file
+      can't be fetched (e.g. the server doesn't allow cross-origin access), it's skipped and listed in a
+      <code>COULD-NOT-TRANSFER</code> file dropped into the Drive folder so nothing fails silently.
+    </div>
+  </div>
+
+  <script>
+    /* ------------------------------------------------------------
+       State
+       ------------------------------------------------------------ */
+    let accessToken = null;
+    let running = false;
+
+    /* ------------------------------------------------------------
+       UI helpers
+       ------------------------------------------------------------ */
+    function setStatus(id, msg, type) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.className = 'status ' + (type || '');
+    }
+
+    function toggleLog() {
+      const log = document.getElementById('log');
+      log.style.display = log.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function logLine(msg, kind) {
+      const log = document.getElementById('log');
+      log.style.display = 'block';
+      const line = document.createElement('div');
+      if (kind) line.className = 'line-' + kind;
+      line.textContent = msg;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    /* ------------------------------------------------------------
+       Auth — Google OAuth (same pattern as the main GCDash app,
+       trimmed to only the scopes this tool needs)
+       ------------------------------------------------------------ */
+    function connectGoogle() {
+      const clientId = typeof CONFIG !== 'undefined' && CONFIG.clientId ? CONFIG.clientId : '';
+      if (!clientId) {
+        setStatus('auth-status', 'Client ID not found — is config.js present?', 'error');
+        return;
+      }
+      if (!window.google || !window.google.accounts) {
+        setStatus('auth-status', 'Google Identity Services not ready.', 'error');
+        return;
+      }
+
+      setStatus('auth-status', 'Opening Google sign-in…', 'info');
+      document.getElementById('connect-btn').disabled = true;
+
+      try {
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: [
+            'https://www.googleapis.com/auth/classroom.courses.readonly',
+            'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
+            'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
+            'https://www.googleapis.com/auth/classroom.topics.readonly',
+            'https://www.googleapis.com/auth/drive.file',
+          ].join(' '),
+          callback: handleToken,
+          error_callback: (err) => {
+            setStatus('auth-status', 'Auth error: ' + (err.message || err.type), 'error');
+            document.getElementById('connect-btn').disabled = false;
+          },
+        });
+        tokenClient.requestAccessToken({ prompt: 'select_account consent' });
+      } catch (e) {
+        setStatus('auth-status', 'Error: ' + e.message, 'error');
+        document.getElementById('connect-btn').disabled = false;
+      }
+    }
+
+    function handleToken(resp) {
+      if (resp.error) {
+        setStatus('auth-status', 'Auth error: ' + resp.error, 'error');
+        document.getElementById('connect-btn').disabled = false;
+        return;
+      }
+      accessToken = resp.access_token;
+      setStatus('auth-status', 'Signed in.', 'success');
+      document.getElementById('run-card').style.display = 'block';
+    }
+
+    /* ------------------------------------------------------------
+       Classroom API
+       ------------------------------------------------------------ */
+    async function apiGet(url) {
+      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error((e.error && e.error.message) || 'API error ' + r.status);
+      }
+      return r.json();
+    }
+
+    async function fetchAllCourses() {
+      let all = [], pageToken = '';
+      do {
+        const url = 'https://classroom.googleapis.com/v1/courses?pageSize=50' +
+          (pageToken ? '&pageToken=' + pageToken : '');
+        const data = await apiGet(url);
+        all = all.concat(data.courses || []);
+        pageToken = data.nextPageToken || '';
+      } while (pageToken);
+      return all;
+    }
+
+    async function fetchCourseWorkAndTopics(courseId) {
+      const awData = await apiGet(
+        `https://classroom.googleapis.com/v1/courses/${courseId}/courseWork?pageSize=100`,
+      ).catch((e) => { throw new Error('Assignments: ' + e.message); });
+      const mwData = await apiGet(
+        `https://classroom.googleapis.com/v1/courses/${courseId}/courseWorkMaterials?pageSize=100`,
+      ).catch((e) => { throw new Error('Materials: ' + e.message); });
+      const tpData = await apiGet(
+        `https://classroom.googleapis.com/v1/courses/${courseId}/topics?pageSize=100`,
+      ).catch(() => ({ topic: [] }));
+
+      const topicMap = {};
+      (tpData.topic || []).forEach((t) => { topicMap[t.topicId] = t.name; });
+
+      return {
+        assignments: awData.courseWork || [],
+        materials: mwData.courseWorkMaterial || [],
+        topicMap,
+      };
+    }
+
+    /* ------------------------------------------------------------
+       Finding matching resources
+       ------------------------------------------------------------ */
+    function isTargetDomain(url, domain) {
+      try {
+        const host = new URL(url).hostname.toLowerCase();
+        return host === domain || host === 'www.' + domain;
+      } catch {
+        return false;
+      }
+    }
+
+    function filenameFromUrl(url) {
+      try {
+        const path = new URL(url).pathname;
+        const base = decodeURIComponent(path.split('/').filter(Boolean).pop() || '');
+        return base || 'file';
+      } catch {
+        return 'file';
+      }
+    }
+
+    function collectMatches(course, topicMap, assignments, materials, domain) {
+      const matches = [];
+      [...assignments, ...materials].forEach((item) => {
+        const topicName = item.topicId ? (topicMap[item.topicId] || 'Unknown topic') : 'No topic';
+        (item.materials || []).forEach((mat) => {
+          if (mat.link && isTargetDomain(mat.link.url, domain)) {
+            matches.push({ course, topic: topicName, url: mat.link.url });
+          }
+        });
+      });
+      return matches;
+    }
+
+    /* ------------------------------------------------------------
+       Drive — folders, dedup lookup, resumable upload
+       ------------------------------------------------------------ */
+    async function findOrCreateDriveFolder(name, parentId) {
+      const parentClause = parentId ? ` and '${parentId}' in parents` : ` and 'root' in parents`;
+      const q = encodeURIComponent(
+        `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parentClause}`,
+      );
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+        headers: { Authorization: 'Bearer ' + accessToken },
+      });
+      const d = await r.json();
+      if (d.files && d.files.length > 0) return d.files[0].id;
+
+      const body = { name, mimeType: 'application/vnd.google-apps.folder' };
+      if (parentId) body.parents = [parentId];
+      const c = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return (await c.json()).id;
+    }
+
+    async function findDriveFileBySourceUrl(url) {
+      const q = encodeURIComponent(
+        `appProperties has { key='sourceUrl' and value='${url.replace(/'/g, "\\'")}' } and trashed=false`,
+      );
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,parents)`, {
+        headers: { Authorization: 'Bearer ' + accessToken },
+      });
+      const d = await r.json();
+      return d.files && d.files.length > 0 ? d.files[0] : null;
+    }
+
+    async function addDriveParent(fileId, folderId) {
+      await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${folderId}&fields=id,parents`,
+        {
+          method: 'PATCH',
+          headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+          body: '{}',
+        },
+      );
+    }
+
+    async function uploadResumable(blob, filename, mimeType, folderId, sourceUrl) {
+      const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + accessToken,
+          'Content-Type': 'application/json; charset=UTF-8',
+          'X-Upload-Content-Type': mimeType || 'application/octet-stream',
+          'X-Upload-Content-Length': String(blob.size),
+        },
+        body: JSON.stringify({
+          name: filename,
+          parents: [folderId],
+          appProperties: { sourceUrl },
+        }),
+      });
+      if (!initRes.ok) throw new Error('Could not start upload (HTTP ' + initRes.status + ')');
+      const uploadUrl = initRes.headers.get('Location');
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': mimeType || 'application/octet-stream' },
+        body: blob,
+      });
+      if (!putRes.ok) throw new Error('Upload failed (HTTP ' + putRes.status + ')');
+      return putRes.json();
+    }
+
+    async function uploadTextFile(text, filename, folderId) {
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: filename, parents: [folderId] })], { type: 'application/json' }));
+      form.append('file', new Blob([text], { type: 'text/plain' }));
+      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken },
+        body: form,
+      });
+    }
+
+    /* ------------------------------------------------------------
+       Orchestration
+       ------------------------------------------------------------ */
+    async function startTransfer() {
+      if (running) return;
+      const domain = document.getElementById('domain-input').value.trim().toLowerCase();
+      if (!domain) {
+        setStatus('run-status', 'Enter a domain first.', 'error');
+        return;
+      }
+      const includeArchived = document.getElementById('include-archived').checked;
+
+      running = true;
+      const btn = document.getElementById('start-btn');
+      btn.disabled = true;
+      document.getElementById('log').textContent = '';
+      setStatus('run-status', 'Fetching your course list…', 'info');
+
+      try {
+        const allCourses = await fetchAllCourses();
+        const targetCourses = allCourses.filter((c) =>
+          c.courseState === 'ACTIVE' || (includeArchived && c.courseState === 'ARCHIVED'),
+        );
+        logLine(`Scanning ${targetCourses.length} course(s) for links to ${domain}…`);
+
+        let matches = [];
+        for (let i = 0; i < targetCourses.length; i++) {
+          const course = targetCourses[i];
+          setStatus('run-status', `Scanning ${course.name}… (${i + 1}/${targetCourses.length})`, 'info');
+          try {
+            const { assignments, materials, topicMap } = await fetchCourseWorkAndTopics(course.id);
+            const found = collectMatches(course, topicMap, assignments, materials, domain);
+            if (found.length) logLine(`${course.name}: ${found.length} match(es)`);
+            matches = matches.concat(found);
+          } catch (e) {
+            logLine(`${course.name}: failed to scan — ${e.message}`, 'error');
+          }
+        }
+
+        if (!matches.length) {
+          setStatus('run-status', `Done — no links to ${domain} found.`, 'success');
+          logLine('No matching links found.');
+          running = false;
+          btn.disabled = false;
+          return;
+        }
+
+        logLine(`Found ${matches.length} link(s). Starting transfer to Drive…`);
+        setStatus('run-status', `Preparing Drive folders…`, 'info');
+        const rootFolderId = await findOrCreateDriveFolder(domain + ' Archive');
+
+        let uploaded = 0, linked = 0, failed = [];
+        const courseFolderCache = {};
+        const topicFolderCache = {};
+
+        for (let i = 0; i < matches.length; i++) {
+          const m = matches[i];
+          const filename = filenameFromUrl(m.url);
+          setStatus('run-status', `${filename} (${i + 1}/${matches.length})`, 'info');
+          btn.textContent = `Transferring… (${i + 1}/${matches.length})`;
+
+          try {
+            const courseFolderKey = m.course.id;
+            if (!courseFolderCache[courseFolderKey]) {
+              courseFolderCache[courseFolderKey] = await findOrCreateDriveFolder(m.course.name, rootFolderId);
+            }
+            const courseFolderId = courseFolderCache[courseFolderKey];
+
+            const topicFolderKey = courseFolderKey + '::' + m.topic;
+            if (!topicFolderCache[topicFolderKey]) {
+              topicFolderCache[topicFolderKey] = await findOrCreateDriveFolder(m.topic, courseFolderId);
+            }
+            const topicFolderId = topicFolderCache[topicFolderKey];
+
+            const existing = await findDriveFileBySourceUrl(m.url);
+            if (existing) {
+              const parents = existing.parents || [];
+              if (!parents.includes(topicFolderId)) {
+                await addDriveParent(existing.id, topicFolderId);
+              }
+              linked++;
+              logLine(`${m.course.name} / ${m.topic} / ${filename} — already in Drive, linked`, 'ok');
+              continue;
+            }
+
+            const res = await fetch(m.url);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const blob = await res.blob();
+            await uploadResumable(blob, filename, blob.type, topicFolderId, m.url);
+            uploaded++;
+            logLine(`${m.course.name} / ${m.topic} / ${filename} — uploaded`, 'ok');
+          } catch (e) {
+            failed.push(m);
+            logLine(`${m.course.name} / ${m.topic} / ${filename} — FAILED: ${e.message}`, 'error');
+          }
+        }
+
+        if (failed.length) {
+          const lines = failed.map((m) => `${m.course.name} / ${m.topic} — ${m.url}`);
+          const stamp = new Date().toISOString().slice(0, 10);
+          await uploadTextFile(lines.join('\n'), `COULD-NOT-TRANSFER-${stamp}.txt`, rootFolderId);
+        }
+
+        const summary = `Done — ${uploaded} uploaded, ${linked} already in Drive (linked), ${failed.length} couldn't be fetched.`;
+        setStatus('run-status', summary, failed.length ? 'error' : 'success');
+        logLine(summary);
+      } catch (e) {
+        setStatus('run-status', 'Error: ' + e.message, 'error');
+        logLine('Fatal error: ' + e.message, 'error');
+      }
+
+      running = false;
+      btn.disabled = false;
+      btn.textContent = 'Start Transfer';
+    }
+  </script>
+
+</body>
+
+</html>

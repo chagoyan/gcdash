@@ -1322,9 +1322,29 @@ const PRINT_STYLES = `
   @media print { body { padding: 1rem; } .topic-heading { background: #F26522 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } li.assignment-item { background: #fff !important; } }
 `;
 
+function exportPageScriptHtml(filename) {
+	return `<script>
+function exportPage() {
+	var clone = document.documentElement.cloneNode(true);
+	var toolbar = clone.querySelector('.no-print');
+	if (toolbar) toolbar.parentNode.removeChild(toolbar);
+	clone.querySelectorAll('script').forEach(function (s) { s.parentNode.removeChild(s); });
+	var html = '<!DOCTYPE html>\\n' + clone.outerHTML;
+	var blob = new Blob([html], { type: 'text/html' });
+	var url = URL.createObjectURL(blob);
+	var a = document.createElement('a');
+	a.href = url;
+	a.download = ${JSON.stringify(filename)};
+	a.click();
+	URL.revokeObjectURL(url);
+}
+</script>`;
+}
+
 function buildPrintHtml(course, data, mode) {
 	const isSummary = mode === 'summary';
 	const body = renderTopicBlocksHtml(course, data, mode);
+	const filename = slugify(course.name) + (isSummary ? '-summary' : '-detailed') + '.html';
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -1340,11 +1360,13 @@ function buildPrintHtml(course, data, mode) {
 <body>
   <div class="no-print">
     <button onclick="window.print()">Print</button>
+    <button class="secondary" onclick="exportPage()">Export Web Page</button>
     <button class="secondary" onclick="window.close()">Close</button>
   </div>
   ${renderCourseHeaderHtml(course, mode)}
   ${body}
   <div class="footer">Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+  ${exportPageScriptHtml(filename)}
 </body>
 </html>`;
 }
@@ -1352,6 +1374,9 @@ function buildPrintHtml(course, data, mode) {
 function buildCombinedPrintHtml(list, mode) {
 	const isSummary = mode === 'summary';
 	const title = list.map((x) => x.course.name).join(' + ');
+	const filename =
+		'combined-' + slugify(list.map((x) => x.course.name).join('-')) +
+		(isSummary ? '-summary' : '-detailed') + '.html';
 
 	const sections = list
 		.map(
@@ -1374,10 +1399,12 @@ function buildCombinedPrintHtml(list, mode) {
 <body>
   <div class="no-print">
     <button onclick="window.print()">Print</button>
+    <button class="secondary" onclick="exportPage()">Export Web Page</button>
     <button class="secondary" onclick="window.close()">Close</button>
   </div>
   ${sections}
   <div class="footer">Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+  ${exportPageScriptHtml(filename)}
 </body>
 </html>`;
 }
