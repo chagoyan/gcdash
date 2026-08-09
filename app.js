@@ -164,10 +164,8 @@ async function fetchCourseData(courseId) {
 	).catch(() => ({ topic: [] }));
 
 	const topicMap = {};
-	const topicOrder = [];
 	(tpData.topic || []).forEach((t) => {
 		topicMap[t.topicId] = t.name;
-		topicOrder.push(t.topicId);
 	});
 	const assignments = (awData.courseWork || [])
 		.slice()
@@ -176,7 +174,7 @@ async function fetchCourseData(courseId) {
 		.slice()
 		.sort((a, b) => toTimestamp(a) - toTimestamp(b));
 
-	courseData[courseId] = { assignments, materials, topicMap, topicOrder };
+	courseData[courseId] = { assignments, materials, topicMap };
 }
 
 async function fetchSelected() {
@@ -925,8 +923,8 @@ function showCombinedDetail(ids) {
 
 function renderCourseTopics(body, courseId, data) {
 	body.dataset.courseId = courseId;
-	const { assignments, materials, topicMap, topicOrder } = data;
-	const merged = mergeByTopic(assignments, materials, topicMap, topicOrder);
+	const { assignments, materials, topicMap } = data;
+	const merged = mergeByTopic(assignments, materials, topicMap);
 
 	// Apply saved topic order
 	const savedOrder = getTopicOrder(courseId);
@@ -968,6 +966,29 @@ function renderCourseTopics(body, courseId, data) {
 
 		let dragSrc = null;
 
+		function updateMoveButtons() {
+			const blocks = [...body.querySelectorAll('.topic-block')];
+			blocks.forEach((b, i) => {
+				const up = b.querySelector('.topic-move-up');
+				const down = b.querySelector('.topic-move-down');
+				if (up) up.disabled = i === 0;
+				if (down) down.disabled = i === blocks.length - 1;
+			});
+		}
+
+		function moveTopicBlock(block, direction) {
+			const blocks = [...body.querySelectorAll('.topic-block')];
+			const idx = blocks.indexOf(block);
+			const targetIdx = idx + direction;
+			if (targetIdx < 0 || targetIdx >= blocks.length) return;
+			const target = blocks[targetIdx];
+			if (direction < 0) body.insertBefore(block, target);
+			else body.insertBefore(target, block);
+			updateMoveButtons();
+			saveTopicOrder(courseId);
+			debouncedSave();
+		}
+
 		merged.forEach((g) => {
 			const block = document.createElement('div');
 			block.className = 'topic-block' + (collapsedSet.has(g.topicId) ? ' collapsed' : '');
@@ -982,6 +1003,28 @@ function renderCourseTopics(body, courseId, data) {
 			handle.textContent = '⠿';
 			handle.title = 'Drag to reorder';
 
+			const moveUp = document.createElement('button');
+			moveUp.type = 'button';
+			moveUp.className = 'topic-move-btn topic-move-up';
+			moveUp.textContent = '▲';
+			moveUp.title = 'Move up';
+			moveUp.setAttribute('aria-label', 'Move week up');
+			moveUp.addEventListener('click', (e) => {
+				e.stopPropagation();
+				moveTopicBlock(block, -1);
+			});
+
+			const moveDown = document.createElement('button');
+			moveDown.type = 'button';
+			moveDown.className = 'topic-move-btn topic-move-down';
+			moveDown.textContent = '▼';
+			moveDown.title = 'Move down';
+			moveDown.setAttribute('aria-label', 'Move week down');
+			moveDown.addEventListener('click', (e) => {
+				e.stopPropagation();
+				moveTopicBlock(block, 1);
+			});
+
 			const nameEl = document.createElement('span');
 			nameEl.className = 'topic-name';
 			nameEl.textContent = g.topicName;
@@ -991,6 +1034,8 @@ function renderCourseTopics(body, courseId, data) {
 			chevron.textContent = '▼';
 
 			header.appendChild(handle);
+			header.appendChild(moveUp);
+			header.appendChild(moveDown);
 			header.appendChild(nameEl);
 			header.appendChild(chevron);
 
@@ -1066,6 +1111,7 @@ function renderCourseTopics(body, courseId, data) {
 				block.draggable = false;
 				block.classList.remove('dragging');
 				body.querySelectorAll('.topic-block').forEach(b => b.classList.remove('drag-over'));
+				updateMoveButtons();
 				saveTopicOrder(courseId);
 				debouncedSave();
 			});
@@ -1089,6 +1135,8 @@ function renderCourseTopics(body, courseId, data) {
 
 			body.appendChild(block);
 		});
+
+		updateMoveButtons();
 	}
 }
 
@@ -1180,7 +1228,7 @@ function renderCourseHeaderHtml(course, mode) {
 }
 
 function renderTopicBlocksHtml(course, data, mode) {
-	const merged = mergeByTopic(data.assignments, data.materials, data.topicMap, data.topicOrder);
+	const merged = mergeByTopic(data.assignments, data.materials, data.topicMap);
 	const savedOrder = getTopicOrder(course.id);
 	if (savedOrder) {
 		merged.sort((a, b) => {
@@ -1375,7 +1423,7 @@ function courseToMd(c, data) {
 
 function courseTopicsToMdLines(data) {
 	const lines = [];
-	mergeByTopic(data.assignments, data.materials, data.topicMap || {}, data.topicOrder || []).forEach(
+	mergeByTopic(data.assignments, data.materials, data.topicMap || {}).forEach(
 		(g) => {
 			lines.push('## ' + g.topicName);
 			lines.push('');
@@ -1442,7 +1490,14 @@ function combinedCoursesToMd(list) {
    Helpers
    ------------------------------------------------------------ */
 
-function mergeByTopic(assignments, materials, topicMap, topicOrder = []) {
+function topicCreationTime(items) {
+	const times = items
+		.map((it) => (it.creationTime ? new Date(it.creationTime).getTime() : NaN))
+		.filter((t) => !isNaN(t));
+	return times.length ? Math.min(...times) : Infinity;
+}
+
+function mergeByTopic(assignments, materials, topicMap) {
 	const groups = {};
 	assignments.forEach((a) => {
 		const tid = a.topicId || '__none__';
@@ -1461,16 +1516,12 @@ function mergeByTopic(assignments, materials, topicMap, topicOrder = []) {
 				tid === '__none__' ? 'No topic' : topicMap[tid] || 'Unknown topic',
 			assignments: groups[tid].assignments,
 			materials: groups[tid].materials,
+			createdAt: topicCreationTime([...groups[tid].assignments, ...groups[tid].materials]),
 		}))
 		.sort((a, b) => {
 			if (a.topicId === '__none__') return 1;
 			if (b.topicId === '__none__') return -1;
-			const ai = topicOrder.indexOf(a.topicId);
-			const bi = topicOrder.indexOf(b.topicId);
-			if (ai === -1 && bi === -1) return 0;
-			if (ai === -1) return 1;
-			if (bi === -1) return -1;
-			return ai - bi;
+			return a.createdAt - b.createdAt;
 		});
 }
 

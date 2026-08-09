@@ -92,6 +92,28 @@
     .combine-course-section {
       margin-bottom: 1rem;
     }
+
+    .topic-move-btn {
+      border: none;
+      background: transparent;
+      color: #5f6368;
+      cursor: pointer;
+      font-size: 9px;
+      line-height: 1;
+      padding: 4px 5px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .topic-move-btn:hover:not(:disabled) {
+      background: rgba(0, 0, 0, 0.08);
+      color: #F26522;
+    }
+
+    .topic-move-btn:disabled {
+      opacity: 0.25;
+      cursor: default;
+    }
   </style>
 </head>
 
