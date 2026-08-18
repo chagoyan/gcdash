@@ -687,6 +687,23 @@
       border-color: var(--accent);
     }
 
+    /* Attendance overrides — take priority over grade tier coloring */
+    .desk.occupied.att-absent {
+      background: var(--accent-dim);
+      border-color: var(--accent-dim);
+    }
+
+    .desk.occupied.att-absent .desk-grade,
+    .desk.occupied.att-absent .desk-name,
+    .desk.occupied.att-absent .desk-name a {
+      color: #fff;
+    }
+
+    .desk.occupied.att-tardy {
+      background: rgba(242, 101, 34, 0.3);
+      border-color: var(--accent);
+    }
+
     .desk.occupied:hover {
       filter: brightness(1.08);
       cursor: grab;
@@ -721,6 +738,24 @@
 
     .desk:hover .desk-remove {
       opacity: 1;
+    }
+
+    .desk-att-badge {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      color: var(--accent-dim);
+      font-size: 0.62rem;
+      font-weight: 700;
+      font-family: 'DM Mono', monospace;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .desk-grade {
@@ -1407,6 +1442,7 @@
           <button data-mode="random">Random</button>
           <hr />
           <button data-mode="reset" class="danger">Reset — Clear All Seats</button>
+          <button data-mode="resetAttendance" class="danger">Reset — Clear Attendance (A/T)</button>
         </div>
       </div>
       <button class="btn btn-primary" id="saveBtn" disabled>Save Seating Chart</button>
@@ -1614,6 +1650,8 @@
     let accessToken = null;
     let students = [];   // [{ id, firstName, lastName, grade, meta:{field1..4} }]
     let seats = {};   // { "r-c": studentId | null }
+    let attendanceByCourse = getAttendanceStore();   // { courseId: { studentId: 'absent' | 'tardy' } } — persisted locally, never saved with the chart
+    let attendance = {};   // alias for attendanceByCourse[currentCourseId]
     let rows = 5;
     let cols = 6;
     let colWidths = [];
@@ -1903,6 +1941,8 @@
       currentCourseId = courseId;
       seats = {};
       students = [];
+      if (!attendanceByCourse[courseId]) attendanceByCourse[courseId] = {};
+      attendance = attendanceByCourse[courseId];
       setStatus('<span class="spinner"></span> Loading roster…');
       assignBtn.disabled = true;
       editRoomBtn.disabled = true;
@@ -2045,6 +2085,25 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // ATTENDANCE (click a seated student to cycle: default → absent → tardy → default)
+    // ═══════════════════════════════════════════════════════════════════════════
+    function attendanceClass(studentId) {
+      const state = attendance[studentId];
+      if (state === 'absent') return 'att-absent';
+      if (state === 'tardy') return 'att-tardy';
+      return '';
+    }
+
+    function cycleAttendance(studentId) {
+      const state = attendance[studentId];
+      if (state === 'absent') attendance[studentId] = 'tardy';
+      else if (state === 'tardy') delete attendance[studentId];
+      else attendance[studentId] = 'absent';
+      saveAttendanceStore();
+      buildGrid();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // GRID
     // ═══════════════════════════════════════════════════════════════════════════
     function buildGrid() {
@@ -2116,10 +2175,19 @@
 
     function setDeskOccupied(desk, student) {
       const tier = tierClass(student);
-      desk.className = `desk occupied ${tier}`;
+      const att = attendanceClass(student.id);
+      desk.className = `desk occupied ${tier}${att ? ' ' + att : ''}`;
       desk.draggable = !IS_TOUCH;
 
-      // Tablet tap handler
+      // Click to cycle attendance status (mouse only — tablet cycles via a plain tap, handled in addTabletTapHandler)
+      if (!IS_TOUCH) {
+        desk.addEventListener('click', e => {
+          if (e.target.closest('a')) return; // don't cycle when clicking the email link
+          cycleAttendance(student.id);
+        });
+      }
+
+      // Tablet tap handler (long-press selects for move; plain tap cycles attendance)
       if (IS_TABLET) {
         addTabletTapHandler(desk, desk.dataset.key);
       }
@@ -2134,8 +2202,14 @@
         ? `<a href="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(student.email)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;cursor:pointer;">${student.firstName}<br>${student.lastName}</a>`
         : `${student.firstName}<br>${student.lastName}`;
 
+      const attState = attendance[student.id];
+      const attBadge = attState === 'absent' ? '<span class="desk-att-badge" title="Absent">A</span>'
+        : attState === 'tardy' ? '<span class="desk-att-badge" title="Tardy">T</span>'
+        : '';
+
       desk.innerHTML = `
     <button class="desk-remove" title="Remove">✕</button>
+    ${attBadge}
     <div class="desk-grade">${gradeLabel(student)}</div>
     <div class="desk-name">${nameHtml}</div>
     ${tags ? `<div class="desk-meta-tags">${tags}</div>` : ''}
@@ -2428,6 +2502,14 @@
         renderRoster();
         return;
       }
+      if (mode === 'resetAttendance') {
+        if (!confirm('Clear absent/tardy status for this class?')) return;
+        attendanceByCourse[currentCourseId] = {};
+        attendance = attendanceByCourse[currentCourseId];
+        saveAttendanceStore();
+        buildGrid();
+        return;
+      }
       const placedIds = new Set(Object.values(seats).filter(Boolean));
       let unplaced = students.filter(s => !placedIds.has(s.id));
       if (mode === 'alpha') {
@@ -2508,6 +2590,16 @@
       });
       if (prev) roomSelect.value = prev;
       deleteRoomBtn.disabled = !roomSelect.value;
+    }
+
+    // Attendance is stored locally only (never synced to Drive / saved with the chart),
+    // so a stray sign-out or reload doesn't lose today's A/T marks.
+    function getAttendanceStore() {
+      try { return JSON.parse(localStorage.getItem('gcdash-seating-attendance') || '{}'); }
+      catch { return {}; }
+    }
+    function saveAttendanceStore() {
+      localStorage.setItem('gcdash-seating-attendance', JSON.stringify(attendanceByCourse));
     }
 
     function getRooms() {
@@ -3126,6 +3218,12 @@
           if (selectedDeskKey && selectedDeskKey !== key) {
             e.preventDefault();
             triggerConfirm(key);
+            return;
+          }
+          // Plain tap on an occupied, unselected desk — cycle attendance
+          if (!selectedDeskKey && isOccupied()) {
+            e.preventDefault();
+            cycleAttendance(seats[key]);
           }
         } else {
           // Long press already fired
