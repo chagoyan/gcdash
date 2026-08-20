@@ -347,6 +347,10 @@ function mergeSettings(settings) {
 		combineIds = settings.combineIds;
 		localStorage.setItem('gcdash-combine-ids', JSON.stringify(combineIds));
 	}
+	if (settings.quickLinks) {
+		localStorage.setItem('gcdash-quick-links', JSON.stringify(settings.quickLinks));
+		if (document.getElementById('quick-links-grid')) renderQuickLinks();
+	}
 	if (courses.length) renderCourses();
 }
 
@@ -397,6 +401,11 @@ function collectSettings() {
 		);
 		seatingMetaLabels = s.metaLabels || {};
 	} catch {}
+	// Quick links
+	let quickLinks = [];
+	try {
+		quickLinks = JSON.parse(localStorage.getItem('gcdash-quick-links') || 'null') || [];
+	} catch {}
 
 	return {
 		courseColors,
@@ -404,6 +413,7 @@ function collectSettings() {
 		seatingLayouts,
 		roomLayouts,
 		seatingMetaLabels,
+		quickLinks,
 		topicOrders,
 		topicCollapsed,
 		combineEnabled: localStorage.getItem('gcdash-combine-enabled') === '1',
@@ -487,6 +497,7 @@ function loadLinks() {
 }
 function saveLinks(links) {
 	localStorage.setItem('gcdash-quick-links', JSON.stringify(links));
+	debouncedSave();
 }
 
 function renderQuickLinks() {

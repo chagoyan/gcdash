@@ -185,6 +185,7 @@ Use `window.screen.width` for device detection.
 ### Active
 
 1. **Help / info icon on seating.html** — add a help icon (ⓘ or ?) to the seating chart toolbar that opens an in-page guide covering the room setup and student assignment workflow.
+2. **Sync attendance/tardies and Quick Links across devices** — Absence/Tardy indicators and Quick Links (`gcdash-quick-links`) currently only apply to localStorage; needs Drive sync (like `courseColors`/`seatingLayouts`).
 
 ### Parking Lot
 
