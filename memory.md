@@ -105,6 +105,8 @@ drive.file
 - Resize rows/columns with drag handles
 - Aisle detection: columns/rows < 32px (MIN_SIZE \* 2)
 - Room layouts saved and synced to Drive
+- Desk numbering (1 = top-left, reading order) shown as a square badge, top-right of each desk
+- Attendance marking: click a seated student to cycle default → absent (A) → tardy (T) → present (P) → default; synced to Drive (last write wins per course), so it follows the teacher between browsers
 - Multi-class print in landscape
 - Student picker modal (click empty desk)
 - Alphabetical / random assign
@@ -168,6 +170,8 @@ Use `window.screen.width` for device detection.
 | `gcdash-seating-rooms`      | Room layout presets                                          |
 | `gcdash-seating-settings`   | Default grid size, meta field labels                         |
 | `gcdash-grades-{courseId}`  | Grade cache (10 min TTL)                                     |
+| `gcdash-seating-attendance` | Attendance by course: `{ courseId: { studentId: 'absent'\|'tardy'\|'present' } }`, synced to Drive |
+| `gcdash-seating-attendance-meta` | Per-course last-updated timestamp, used to merge attendance across devices |
 
 ### Print
 
@@ -185,7 +189,6 @@ Use `window.screen.width` for device detection.
 ### Active
 
 1. **Help / info icon on seating.html** — add a help icon (ⓘ or ?) to the seating chart toolbar that opens an in-page guide covering the room setup and student assignment workflow.
-2. **Sync attendance/tardies and Quick Links across devices** — Absence/Tardy indicators and Quick Links (`gcdash-quick-links`) currently only apply to localStorage; needs Drive sync (like `courseColors`/`seatingLayouts`).
 
 ### Parking Lot
 
