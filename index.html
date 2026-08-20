@@ -137,6 +137,13 @@
       background: rgba(255, 255, 255, 0.2);
       color: #fff;
     }
+
+    #detail-student-count {
+      font-size: 13px;
+      color: #5f6368;
+      margin-top: -0.75rem;
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 
@@ -213,6 +220,7 @@
     <div class="detail-section" id="detail-section">
       <span class="detail-back" onclick="closeDetail()">← Back to courses</span>
       <h2 id="detail-title"></h2>
+      <div id="detail-student-count"></div>
       <div id="detail-body"></div>
       <div class="actions" id="detail-actions">
         <button class="btn btn-primary" onclick="openPrintView('summary')">Print Summary Outline</button>

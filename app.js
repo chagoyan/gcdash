@@ -149,6 +149,20 @@ async function fetchCourses() {
 	}
 }
 
+async function fetchStudentCount(courseId) {
+	let count = 0,
+		pageToken = '';
+	do {
+		const url =
+			`https://classroom.googleapis.com/v1/courses/${courseId}/students?pageSize=100&fields=nextPageToken,students(userId)` +
+			(pageToken ? '&pageToken=' + pageToken : '');
+		const data = await apiGet(url);
+		count += (data.students || []).length;
+		pageToken = data.nextPageToken || '';
+	} while (pageToken);
+	return count;
+}
+
 async function fetchCourseData(courseId) {
 	const awData = await apiGet(
 		`https://classroom.googleapis.com/v1/courses/${courseId}/courseWork?pageSize=100&orderBy=dueDate asc`,
@@ -163,6 +177,7 @@ async function fetchCourseData(courseId) {
 	const tpData = await apiGet(
 		`https://classroom.googleapis.com/v1/courses/${courseId}/topics?pageSize=100`,
 	).catch(() => ({ topic: [] }));
+	const studentCount = await fetchStudentCount(courseId).catch(() => null);
 
 	const topicMap = {};
 	(tpData.topic || []).forEach((t) => {
@@ -175,7 +190,7 @@ async function fetchCourseData(courseId) {
 		.slice()
 		.sort((a, b) => toTimestamp(a) - toTimestamp(b));
 
-	courseData[courseId] = { assignments, materials, topicMap };
+	courseData[courseId] = { assignments, materials, topicMap, studentCount };
 }
 
 async function fetchSelected() {
@@ -898,6 +913,9 @@ function showDetail(courseId) {
 	const course = courses.find((c) => c.id === courseId);
 
 	document.getElementById('detail-title').textContent = course.name;
+	const count = courseData[courseId]?.studentCount;
+	document.getElementById('detail-student-count').textContent =
+		count != null ? `${count} student${count === 1 ? '' : 's'}` : '';
 	document.getElementById('detail-body').innerHTML = '';
 	document.getElementById('detail-actions').style.display = 'flex';
 	selectedTopicBlock = null;
@@ -911,6 +929,7 @@ function showDetail(courseId) {
 
 function showCombinedDetail(ids) {
 	document.getElementById('detail-title').textContent = 'Combined Outline';
+	document.getElementById('detail-student-count').textContent = '';
 	document.getElementById('detail-actions').style.display = 'flex';
 
 	const body = document.getElementById('detail-body');

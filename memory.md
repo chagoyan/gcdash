@@ -62,7 +62,7 @@ drive.file
 
 - Course cards with color coding, drag-to-reorder
 - Active / Archived / Other tabs (Declined removed — useless)
-- Student progress monitor with grade color tiers
+- Student count shown in the detail panel (for comparing against Aeries roster counts) — fetched via `courses.students.list`, paginated, stored as `courseData[courseId].studentCount`
 - Assignment and material fetching
 - Print course outlines
 - Email students via Gmail compose URL
@@ -70,13 +70,6 @@ drive.file
 - Sign out link (top right, subtle)
 - Seating Chart button (only shown for Active courses)
 - Spinner while returning from seating chart
-
-### Grade Tiers
-
-- 🟢 On track: > 75%
-- 🟡 Watch: 61–75%
-- 🔴 At risk: ≤ 60%
-- ⚫ No data: gray
 
 ### Mobile Behavior
 
@@ -100,7 +93,7 @@ drive.file
 ### Features
 
 - Google Classroom roster + grade loading
-- Grade color-coded desk cards
+- Grade color-coded desk cards: 🟢 On track > 75% · 🟡 Watch 61–75% · 🔴 At risk ≤ 60% · ⚫ No data (gray — the default until grades are entered)
 - Drag-and-drop on desktop (atomic swap when dropping on occupied desk)
 - Resize rows/columns with drag handles
 - Aisle detection: columns/rows < 32px (MIN_SIZE \* 2)
@@ -233,6 +226,7 @@ Use `window.screen.width` for device detection.
 - `placeStudent()` does atomic swap — finds old seat, swaps occupant back
 - Template literal `<script>` tags must be split as `<scr` + `ipt>` to avoid parser issues
 - Always run `node --check` on extracted JS before pushing
+- Classroom API's `Student` resource has only 4 fields (`courseId`, `userId`, `profile`, `studentWorkFolder`) — no end date, drop date, or enrollment-status field exists. `courses.students.list` only returns currently-enrolled students; there's no API signal for "dropped in Aeries but still in Classroom" — that gap only closes when the teacher manually removes the student from Classroom
 
 ---
 

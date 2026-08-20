@@ -520,6 +520,10 @@
       cursor: default;
     }
 
+    .student-chip.unseated {
+      background: rgba(250, 204, 21, 0.35);
+    }
+
     .student-chip.tier-green {
       border-color: var(--green);
     }
@@ -2439,13 +2443,14 @@
       rosterList.innerHTML = '';
       const placedIds = new Set(Object.values(seats).filter(Boolean));
       const sorted = [...students].sort((a, b) =>
+        (placedIds.has(a.id) - placedIds.has(b.id)) ||
         a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
       );
       sorted.forEach(student => {
         const placed = placedIds.has(student.id);
         const li = document.createElement('li');
         const chip = document.createElement('div');
-        chip.className = `student-chip ${tierClass(student)}${placed ? ' placed' : ''}`;
+        chip.className = `student-chip ${tierClass(student)}${placed ? ' placed' : ' unseated'}`;
         chip.textContent = `${student.lastName}, ${student.firstName}`;
         chip.title = gradeLabel(student);
         if (!placed) {
