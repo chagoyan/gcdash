@@ -649,6 +649,16 @@
       border-color: transparent;
     }
 
+    #privacyToggleBtn.active {
+      background: #F26522;
+      color: #fff;
+      border-color: transparent;
+    }
+
+    body.private-mode #legend {
+      display: none;
+    }
+
     .restore-btn {
       background: none;
       border: none;
@@ -1483,6 +1493,7 @@
         </div>
       </div>
       <button class="btn btn-primary" id="saveBtn" disabled>Save Seating Chart</button>
+      <button class="btn btn-ghost" id="privacyToggleBtn" title="Toggle whether grade/risk colors are visible on desks">Public View</button>
       <button class="btn btn-ghost" id="printBtn">Print</button>
       <button class="btn btn-ghost" id="settingsBtn" style="padding:5px 10px;" title="Settings">⚙</button>
     </div>
@@ -1687,7 +1698,7 @@
     let accessToken = null;
     let students = [];   // [{ id, firstName, lastName, grade, meta:{field1..4} }]
     let seats = {};   // { "r-c": studentId | null }
-    let attendanceByCourse = getAttendanceStore();   // { courseId: { studentId: 'absent' | 'tardy' | 'present' } } — synced to Drive, last write wins per course
+    let attendanceByCourse = getAttendanceStore();   // { courseId: { studentId: 'present' | 'absent' | 'tardy' } } — synced to Drive, last write wins per course
     let attendanceUpdatedAt = getAttendanceMeta();   // { courseId: msEpoch } — used to resolve which browser's attendance is newer on merge
     let attendance = {};   // alias for attendanceByCourse[currentCourseId]
     let rows = 5;
@@ -1699,6 +1710,7 @@
     let pickerTargetKey = null;
     let desks = new Set();
     let roomEditMode = false;
+    let privateMode = true;   // starts hidden each load — grades/risk colors revealed only after the teacher clicks "Public View"
 
     // ═══════════════════════════════════════════════════════════════════════════
     // DOM REFS
@@ -1715,6 +1727,7 @@
     const editRoomBtn = document.getElementById('editRoomBtn');
     const assignMenu = document.getElementById('assignMenu');
     const saveBtn = document.getElementById('saveBtn');
+    const privacyToggleBtn = document.getElementById('privacyToggleBtn');
     const settingsBtn = document.getElementById('settingsBtn');
     const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
     const statusText = document.getElementById('statusText');
@@ -2123,7 +2136,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // ATTENDANCE (click a seated student to cycle: default → absent → tardy → present → default)
+    // ATTENDANCE (click a seated student to cycle: default → present → absent → tardy → default)
     // ═══════════════════════════════════════════════════════════════════════════
     function attendanceClass(studentId) {
       const state = attendance[studentId];
@@ -2135,10 +2148,10 @@
 
     function cycleAttendance(studentId) {
       const state = attendance[studentId];
-      if (state === 'absent') attendance[studentId] = 'tardy';
-      else if (state === 'tardy') attendance[studentId] = 'present';
-      else if (state === 'present') delete attendance[studentId];
-      else attendance[studentId] = 'absent';
+      if (state === 'present') attendance[studentId] = 'absent';
+      else if (state === 'absent') attendance[studentId] = 'tardy';
+      else if (state === 'tardy') delete attendance[studentId];
+      else attendance[studentId] = 'present';
       saveAttendanceStore();
       buildGrid();
     }
@@ -2222,7 +2235,7 @@
     }
 
     function setDeskOccupied(desk, student) {
-      const tier = tierClass(student);
+      const tier = privateMode ? '' : tierClass(student);
       const att = attendanceClass(student.id);
       desk.className = `desk occupied ${tier}${att ? ' ' + att : ''}`;
       desk.draggable = !IS_TOUCH;
@@ -2259,7 +2272,7 @@
       desk.innerHTML = `
     <button class="desk-remove" title="Remove">✕</button>
     ${attBadge}
-    <div class="desk-grade">${gradeLabel(student)}</div>
+    <div class="desk-grade">${privateMode ? '' : gradeLabel(student)}</div>
     <div class="desk-name">${nameHtml}</div>
     ${tags ? `<div class="desk-meta-tags">${tags}</div>` : ''}
   `;
@@ -2905,6 +2918,22 @@
       sidebar.classList.toggle('collapsed');
       toggleSidebarBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
     });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PRIVACY TOGGLE — starts private on every load so grade/risk colors aren't
+    // visible to students walking in; teacher flips to Public View once seated.
+    // ═══════════════════════════════════════════════════════════════════════════
+    function updatePrivacyUI() {
+      document.body.classList.toggle('private-mode', privateMode);
+      privacyToggleBtn.classList.toggle('active', privateMode);
+      privacyToggleBtn.textContent = privateMode ? 'Public View' : 'Private View';
+    }
+    privacyToggleBtn.addEventListener('click', () => {
+      privateMode = !privateMode;
+      updatePrivacyUI();
+      buildGrid();
+    });
+    updatePrivacyUI();
 
     // ═══════════════════════════════════════════════════════════════════════════
     // COURSE SELECT
